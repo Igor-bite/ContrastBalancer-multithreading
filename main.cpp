@@ -2,6 +2,7 @@
 #include <string>
 #include "pnm.h"
 #include "args_parser.h"
+#include "time_monitor.h"
 #include <map>
 #include <sys/stat.h>
 
@@ -86,7 +87,12 @@ int main(int argc, char* argv[]) {
         picture.printInfo();
         cout << "coef = " << coeff << endl;
     }
+
+    auto timeMonitor = TimeMonitor();
+    timeMonitor.start();
     picture.modify(coeff, isDebug);
+    double elapsedTime = timeMonitor.stop();
+    cout << "Time: " << elapsedTime << endl;
 
     string newPictureFilename = "/Users/kluzhev-igor/CLionProjects/ContrastBalancer/";
     newPictureFilename.append(argsMap[constants::outputFileParam]);

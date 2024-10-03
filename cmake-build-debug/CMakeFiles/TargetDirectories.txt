@@ -1,3 +1,0 @@
-/Users/kluzhev-igor/CLionProjects/ContrastBalancer/cmake-build-debug/CMakeFiles/ContrastBalancer.dir
-/Users/kluzhev-igor/CLionProjects/ContrastBalancer/cmake-build-debug/CMakeFiles/edit_cache.dir
-/Users/kluzhev-igor/CLionProjects/ContrastBalancer/cmake-build-debug/CMakeFiles/rebuild_cache.dir

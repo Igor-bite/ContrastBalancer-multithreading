@@ -15,4 +15,6 @@ add_executable(ContrastBalancer main.cpp
         pnm.h
         args_parser.cpp
         args_parser.h
+        time_monitor.cpp
+        time_monitor.h
 )
