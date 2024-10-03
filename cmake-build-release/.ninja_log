@@ -1,0 +1,10 @@
+# ninja log v6
+8	280	1727894574071109034	CMakeFiles/ContrastBalancer.dir/main.cpp.o.ddi	3d76ebbd81e98d4
+281	290	1727894574343133244	CMakeFiles/ContrastBalancer.dir/CXX.dd	fe132fd4c52b8bca
+281	290	1727894574343133244	CMakeFiles/ContrastBalancer.dir/main.cpp.o.modmap	fe132fd4c52b8bca
+281	290	1727894574343133244	CMakeFiles/ContrastBalancer.dir/pnm.cpp.o.modmap	fe132fd4c52b8bca
+281	290	1727894574343133244	/Users/kluzhev-igor/CLionProjects/ContrastBalancer/cmake-build-release/CMakeFiles/ContrastBalancer.dir/CXXModules.json	fe132fd4c52b8bca
+8	283	1727894350050323538	CMakeFiles/ContrastBalancer.dir/pnm.cpp.o.ddi	8c46097417ae4d29
+292	956	1727894350334187672	CMakeFiles/ContrastBalancer.dir/pnm.cpp.o	81152fbe99fe3eaa
+299	1038	1727894363204298009	CMakeFiles/ContrastBalancer.dir/main.cpp.o	9ce21d31ac2fd728
+1038	1091	1727894363943211229	ContrastBalancer	c0b42dce66e77ff2

@@ -1,0 +1,4 @@
+/Applications/CLion.app/Contents/bin/cmake/mac/aarch64/bin/cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=/Applications/CLion.app/Contents/bin/ninja/mac/aarch64/ninja -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ -DCXXFLAGS='-Xclang' -DCMAKE_LIBRARY_PATH='-L/opt/homebrew/opt/libomp/lib' -DCMAKE_INCLUDE_PATH='-I/opt/homebrew/opt/libomp/include' -G Ninja -S /Users/kluzhev-igor/CLionProjects/ContrastBalancer -B /Users/kluzhev-igor/CLionProjects/ContrastBalancer/cmake-build-release
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /Users/kluzhev-igor/CLionProjects/ContrastBalancer/cmake-build-release

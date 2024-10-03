@@ -1,0 +1,9 @@
+{
+  "revision": 0,
+  "rules": [
+    {
+      "primary-output": "CMakeFiles/ContrastBalancer.dir/pnm.cpp.o"
+    }
+  ],
+  "version": 1
+}
