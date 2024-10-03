@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    string inputFileName = "/Users/kluzhev-igor/CLionProjects/ContrastBalancer/";
+    string inputFileName = "/Users/kluzhev-igor/CLionProjects/ContrastBalancer/Images/";
     inputFileName.append(argsMap[constants::inputFileParam]);
 
     if (!isFileExists(inputFileName)) {
@@ -94,7 +94,7 @@ int main(int argc, char* argv[]) {
     double elapsedTime = timeMonitor.stop();
     cout << "Time: " << elapsedTime << endl;
 
-    string newPictureFilename = "/Users/kluzhev-igor/CLionProjects/ContrastBalancer/";
+    string newPictureFilename = "/Users/kluzhev-igor/CLionProjects/ContrastBalancer/Images/";
     newPictureFilename.append(argsMap[constants::outputFileParam]);
     picture.write(newPictureFilename);
 
