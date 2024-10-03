@@ -5,8 +5,6 @@
 #ifndef TESTPROJECT_TIME_MONITOR_H
 #define TESTPROJECT_TIME_MONITOR_H
 
-#include <ctime>
-
 class TimeMonitor {
 public:
     TimeMonitor();
@@ -15,7 +13,7 @@ public:
     double stop();
 
 private:
-    clock_t start_time;
+    double start_time;
     bool isActive = false;
 };
 

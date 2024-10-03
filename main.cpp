@@ -5,6 +5,7 @@
 #include "time_monitor.h"
 #include <map>
 #include <sys/stat.h>
+#include <omp.h>
 
 using namespace std;
 namespace fs = filesystem;
@@ -26,7 +27,7 @@ void printHelp() {
          <<  "--output [fname] - output file for modified image" << endl
          <<  "--coef [coef] - coefficient for ignoring not important colors" << endl
          <<  "--no-omp | --omp-threads [num_threads | default] - multithreading options"
-         << endl;
+         << endl << endl;
 }
 
 inline bool isFileExists(const std::string& name) {
@@ -53,7 +54,6 @@ int main(int argc, char* argv[]) {
 
     if (argsMap[constants::helpFlag] == args_parser_constants::trueFlagValue) {
         printHelp();
-        cout << endl;
         return 0;
     }
 
@@ -80,7 +80,6 @@ int main(int argc, char* argv[]) {
         cerr << "Error: unsupported format" << endl;
         return 1;
     }
-
 
     float coeff = stof(argsMap[constants::coefParam]);
     if (isDebug) {

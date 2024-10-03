@@ -3,22 +3,23 @@
 //
 
 #include "time_monitor.h"
-#include <ctime>
+#include <iostream>
+#include <omp.h>
 
 using namespace std;
 
 TimeMonitor::TimeMonitor() = default;
 
 void TimeMonitor::start() {
-    start_time = clock();
+    start_time = omp_get_wtime();
     isActive = true;
 }
 
 double TimeMonitor::stop() {
-    auto end_time = clock();
+    double end_time = omp_get_wtime();
     if (isActive) {
         isActive = false;
-        return static_cast<double>(end_time - start_time) / CLOCKS_PER_SEC;
+        return end_time - start_time;
     } else {
         return -1;
     }
