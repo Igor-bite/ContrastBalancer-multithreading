@@ -47,7 +47,7 @@ void PNMPicture::read(ifstream& inputFile) {
         throw FileIOException();
 }
 
-void PNMPicture::write(const string& fileName) {
+void PNMPicture::write(const string& fileName) const {
     ofstream outputFile(fileName, ios::binary);
     if (!outputFile.is_open())
         throw FileIOException();
@@ -55,7 +55,7 @@ void PNMPicture::write(const string& fileName) {
     outputFile.close();
 }
 
-void PNMPicture::write(ofstream& outputFile) {
+void PNMPicture::write(ofstream& outputFile) const {
     outputFile << "P" << format << '\n';
     outputFile << width << ' ' << height << '\n';
     outputFile << colors << '\n';
@@ -70,7 +70,7 @@ void PNMPicture::write(ofstream& outputFile) {
     outputFile.write((char*) &data[0], width * height * colorsCount);
 }
 
-void PNMPicture::printInfo() {
+void PNMPicture::printInfo() const {
     cout << "Format = P" << format << endl;
     cout << "W x H = " << width << " x " << height << endl;
     cout << "Colors = " << colors << endl;
@@ -107,23 +107,10 @@ void PNMPicture::modify(float coeff, bool isDebug) {
     if (isDebug) {
         cout << "Ignoring " << ignoreCount << " values at each side" << endl << endl;
     }
-
     vector<int> elements;
-    elements.resize(256, 0);
-
     uchar min_v = 255;
     uchar max_v = 0;
-    int darkFullCount = 0;
-    int brightFullCount = 0;
-    for (size_t i = 0; i < size; i++) {
-        int v = data[i];
-        elements[v] += 1;
-        if (v < 128) {
-            darkFullCount += 1;
-        } else {
-            brightFullCount += 1;
-        }
-    }
+    analyzeData(elements);
 
     int darkCount = 0;
     bool isDarkComplete = false;
@@ -183,5 +170,21 @@ void PNMPicture::modify(float coeff, bool isDebug) {
         int scaledValue = int(scale * (int(value) - int(min_v)));
         uchar limitedValue = max(0, min(scaledValue, 255));
         data[i] = limitedValue;
+    }
+}
+
+void PNMPicture::analyzeData(vector<int> &elements) const {
+    size_t size = data.size();
+    elements.resize(256, 0);
+    int darkFullCount = 0;
+    int brightFullCount = 0;
+    for (size_t i = 0; i < size; i++) {
+        int v = data[i];
+        elements[v] += 1;
+        if (v < 128) {
+            darkFullCount += 1;
+        } else {
+            brightFullCount += 1;
+        }
     }
 }

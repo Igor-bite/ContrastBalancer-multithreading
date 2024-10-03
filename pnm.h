@@ -45,16 +45,19 @@ public:
     void read(string fileName);
     void read(ifstream& inputFile);
 
-    void write(const string& fileName);
-    void write(ofstream& outputFile);
+    void write(const string& fileName) const;
+    void write(ofstream& outputFile) const;
 
-    void printInfo();
+    void printInfo() const;
     void modify(float coeff, bool isDebug);
 
     int format;
     int width, height;
     int colors;
     vector<uchar> data;
+
+private:
+    void analyzeData(vector<int> &elements) const;
 };
 
 
