@@ -39,7 +39,7 @@ inline bool isFileExists(const std::string& name) {
 #define PARALLEL
 //#define MANY
 
-int pseudoMain(int argc, char* argv[]) {
+int pseudoMain(int argc, char* argv[], int threads_count) {
     bool isDebug = false;
 #ifdef DEBUG
     isDebug = true;
@@ -95,7 +95,7 @@ int pseudoMain(int argc, char* argv[]) {
 
     auto timeMonitor = TimeMonitor("main", true);
     timeMonitor.start();
-    picture.modify(coeff, isDebug, isParallel);
+    picture.modify(coeff, isDebug, isParallel, threads_count);
     timeMonitor.stop();
 
     string newPictureFilename = argsMap[constants::outputFileParam];
@@ -104,13 +104,13 @@ int pseudoMain(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
-
     int count = 1;
 #ifdef MANY
     count = 10;
 #endif
-    for (auto i = 0; i < count; i++) {
-        pseudoMain(argc, argv);
+    int threads_count = omp_get_max_threads();
+    for (auto i = 1; i <= count; i++) {
+        pseudoMain(argc, argv, threads_count);
         cout << "-------------------------------------" << endl;
     }
 

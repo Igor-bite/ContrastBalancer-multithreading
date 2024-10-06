@@ -49,7 +49,7 @@ public:
     void write(ofstream& outputFile) const;
 
     void printInfo() const noexcept;
-    void modify(float coeff, bool isDebug, bool isParallel) noexcept;
+    void modify(float coeff, bool isDebug, bool isParallel, int threads_count) noexcept;
 
     int format;
     int width, height;
@@ -57,10 +57,10 @@ public:
     vector<uchar> data;
 
 private:
-    void analyzeData(vector<size_t> &elements, bool isParallel) const noexcept;
+    void analyzeData(vector<size_t> &elements, bool isParallel, int threads_count) const noexcept;
 
     void determineMinMax(bool isDebug, bool isParallel, size_t ignoreCount, const vector<size_t> &elements, uchar &min_v,
-                         uchar &max_v) const noexcept;
+                         uchar &max_v, int threads_count) const noexcept;
 };
 
 

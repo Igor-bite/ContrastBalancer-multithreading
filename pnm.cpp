@@ -102,7 +102,7 @@ void PNMPicture::printInfo() const noexcept {
 // omp + simd + ilp
 
 // TODO: оптимизировать и сделать игнорирование для разных каналов раздельно
-void PNMPicture::modify(float coeff, bool isDebug, bool isParallel) noexcept {
+void PNMPicture::modify(float coeff, bool isDebug, bool isParallel, int threads_count) noexcept {
     size_t size = data.size();
 
     size_t ignoreCount = size * coeff;
@@ -115,12 +115,12 @@ void PNMPicture::modify(float coeff, bool isDebug, bool isParallel) noexcept {
 
     auto analyzeTM = TimeMonitor("analyzeData", true);
     analyzeTM.start();
-    analyzeData(elements, isParallel);
+    analyzeData(elements, isParallel, threads_count);
     analyzeTM.stop();
 
     auto analyzeMinMax = TimeMonitor("determineMinMax", true);
     analyzeMinMax.start();
-    determineMinMax(isDebug, isParallel, ignoreCount, elements, min_v, max_v);
+    determineMinMax(isDebug, isParallel, ignoreCount, elements, min_v, max_v, threads_count);
     analyzeMinMax.stop();
 
     if (min_v == 0 && max_v == 255) {
@@ -137,7 +137,7 @@ void PNMPicture::modify(float coeff, bool isDebug, bool isParallel) noexcept {
     auto scalingTM = TimeMonitor("scaling", true);
     scalingTM.start();
 
-#pragma omp parallel for schedule(guided) if(isParallel)
+#pragma omp parallel for schedule(guided) if(isParallel) num_threads(threads_count)
     for (size_t i = 0; i < size; i++) {
         uchar value = data[i];
         int scaledValue = int(scale * float(value) - scaledMinV);
@@ -152,7 +152,9 @@ void PNMPicture::determineMinMax(
     bool isParallel,
     size_t ignoreCount,
     const vector<size_t> &elements,
-    uchar &min_v, uchar &max_v
+    uchar &min_v,
+    uchar &max_v,
+    int threads_count
 ) const noexcept {
 
     int darkCount = 0;
@@ -163,8 +165,9 @@ void PNMPicture::determineMinMax(
 
 #pragma omp parallel if(isParallel) firstprivate(darkCount, isDarkComplete, brightCount, isBrightComplete) shared(min_v, max_v) num_threads(2)
     {
+        auto threadNum = omp_get_thread_num();
+
         for (size_t i = 0; i < 128; i++) {
-            auto threadNum = omp_get_thread_num();
             bool isDarkHandler = threadNum == 0;
 
             if (isDarkHandler) {
@@ -172,7 +175,7 @@ void PNMPicture::determineMinMax(
                     size_t darkIndex = i;
                     int element = 0;
                     if (isParallel) {
-                        for (auto j = 0; j < omp_get_max_threads(); ++j) {
+                        for (auto j = 0; j < threads_count; ++j) {
                             element += elements[darkIndex + j * 256];
                         }
                     } else {
@@ -194,7 +197,7 @@ void PNMPicture::determineMinMax(
                     size_t brightIndex = 255 - i;
                     int element = 0;
                     if (isParallel) {
-                        for (auto j = 0; j < omp_get_max_threads(); ++j) {
+                        for (auto j = 0; j < threads_count; ++j) {
                             element += elements[brightIndex + j * 256];
                         }
                     } else {
@@ -225,17 +228,17 @@ void PNMPicture::determineMinMax(
     }
 }
 
-void PNMPicture::analyzeData(vector<size_t> & elements, bool isParallel) const noexcept {
+void PNMPicture::analyzeData(vector<size_t> & elements, bool isParallel, int threads_count) const noexcept {
     if (isParallel) {
-        int threads_num = omp_get_max_threads();
-        elements.resize(256 * threads_num, 0);
+        elements.resize(256 * threads_count, 0);
 
-#pragma omp parallel default(shared) if(isParallel)
+#pragma omp parallel default(shared) if(isParallel) num_threads(threads_count)
         {
+            int thread = omp_get_thread_num();
 #pragma omp for schedule(guided)
             for (size_t i = 0; i < data.size(); ++i) {
-                auto index1 = data[i] + 256 * omp_get_thread_num();
-                elements[index1] += 1;
+                auto index = data[i] + 256 * thread;
+                elements[index] += 1;
             }
         }
     } else {
