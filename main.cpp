@@ -89,8 +89,8 @@ int main(int argc, char* argv[]) {
 
     auto timeMonitor = TimeMonitor();
     timeMonitor.start();
-    picture.modify(coeff, isDebug);
-    double elapsedTime = timeMonitor.stop();
+    picture.modify(coeff, isDebug, isParallel);
+    int elapsedTime = timeMonitor.stop();
     cout << "Time: " << elapsedTime << endl;
 
     string newPictureFilename = "/Users/kluzhev-igor/CLionProjects/ContrastBalancer/Images/";

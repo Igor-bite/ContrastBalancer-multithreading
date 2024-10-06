@@ -15,11 +15,11 @@ void TimeMonitor::start() {
     isActive = true;
 }
 
-double TimeMonitor::stop() {
+int TimeMonitor::stop() {
     double end_time = omp_get_wtime();
     if (isActive) {
         isActive = false;
-        return end_time - start_time;
+        return int((end_time - start_time) * 1000);
     } else {
         return -1;
     }

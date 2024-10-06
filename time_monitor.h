@@ -10,7 +10,7 @@ public:
     TimeMonitor();
 
     void start();
-    double stop();
+    int stop();
 
 private:
     double start_time;
