@@ -37,7 +37,7 @@ inline bool isFileExists(const std::string& name) {
 
 //#define DEBUG
 #define PARALLEL
-//#define MANY
+#define MANY
 
 int pseudoMain(int argc, char* argv[]) {
     bool isDebug = false;
@@ -93,7 +93,7 @@ int pseudoMain(int argc, char* argv[]) {
         cout << "coef = " << coeff << endl;
     }
 
-    auto timeMonitor = TimeMonitor("Main", true);
+    auto timeMonitor = TimeMonitor("main", true);
     timeMonitor.start();
     picture.modify(coeff, isDebug, isParallel);
     timeMonitor.stop();
@@ -111,6 +111,7 @@ int main(int argc, char* argv[]) {
 #endif
     for (auto i = 0; i < count; i++) {
         pseudoMain(argc, argv);
+        cout << "-------------------------------------" << endl;
     }
 
     return 0;

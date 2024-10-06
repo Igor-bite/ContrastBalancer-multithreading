@@ -98,13 +98,14 @@ void PNMPicture::printInfo() const {
 // 4) вычисляем min/max
 // 5) пробегаемся ещё раз и меняем значения
 // не забыть посчитать коэффициент умножения заранее - done
+// TODO: если один цвет - ничего не делать
 // omp + simd + ilp
 
 // TODO: оптимизировать и сделать игнорирование для разных каналов раздельно
 void PNMPicture::modify(float coeff, bool isDebug, bool isParallel) {
     size_t size = data.size();
 
-    int ignoreCount = size * coeff;
+    size_t ignoreCount = size * coeff;
     if (isDebug) {
         cout << "Ignoring " << ignoreCount << " values at each side" << endl << endl;
     }
@@ -126,7 +127,8 @@ void PNMPicture::modify(float coeff, bool isDebug, bool isParallel) {
         return;
     }
 
-    float scale = 255.0 / float(max_v - min_v);
+    float const scale = 255 / float(max_v - min_v);
+    float scaledMinV = scale * float(min_v);
 
     if (isDebug) {
         cout << "Scale = " << scale << endl << endl;
@@ -134,20 +136,21 @@ void PNMPicture::modify(float coeff, bool isDebug, bool isParallel) {
 
     auto scalingTM = TimeMonitor("scaling", true);
     scalingTM.start();
+
+#pragma omp parallel for schedule(guided) if(isParallel)
     for (size_t i = 0; i < size; i++) {
-        // TODO: разобраться с типами и кастами
         uchar value = data[i];
-        int scaledValue = int(scale * (int(value) - int(min_v)));
-        uchar limitedValue = max(0, min(scaledValue, 255));
-        data[i] = limitedValue;
+        int scaledValue = int(scale * float(value) - scaledMinV);
+        data[i] = max(0, min(scaledValue, 255));
     }
+
     scalingTM.stop();
 }
 
 void PNMPicture::determineMinMax(
     bool isDebug,
     bool isParallel,
-    int ignoreCount,
+    size_t ignoreCount,
     const vector<size_t> &elements,
     uchar &min_v, uchar &max_v
 ) const {
