@@ -157,52 +157,65 @@ void PNMPicture::determineMinMax(
 
     int darkCount = 0;
     bool isDarkComplete = false;
+
     int brightCount = 0;
     bool isBrightComplete = false;
 
-    for (size_t i = 0; i < 128; i++) {
-        if (!isDarkComplete) {
-            size_t darkIndex = i;
-            int element = 0;
-            if (isParallel) {
-                for (auto j = 0; j < omp_get_max_threads(); ++j) {
-                    element += elements[darkIndex + j * 256];
+#pragma omp parallel if(isParallel) firstprivate(darkCount, isDarkComplete, brightCount, isBrightComplete) shared(min_v, max_v) num_threads(2)
+    {
+        for (size_t i = 0; i < 128; i++) {
+            auto threadNum = omp_get_thread_num();
+            bool isDarkHandler = threadNum == 0;
+
+            if (isDarkHandler) {
+                if (!isDarkComplete) {
+                    size_t darkIndex = i;
+                    int element = 0;
+                    if (isParallel) {
+                        for (auto j = 0; j < omp_get_max_threads(); ++j) {
+                            element += elements[darkIndex + j * 256];
+                        }
+                    } else {
+                        element = elements[darkIndex];
+                    }
+                    if (darkCount < ignoreCount) {
+                        darkCount += element;
+                    }
+
+                    if (darkCount >= ignoreCount && element != 0) {
+                        isDarkComplete = true;
+                        min_v = darkIndex;
+                    }
+                } else if (isParallel) {
+                    break;
                 }
             } else {
-                element = elements[darkIndex];
-            }
-            if (darkCount < ignoreCount) {
-                darkCount += element;
-            }
+                if (!isBrightComplete) {
+                    size_t brightIndex = 255 - i;
+                    int element = 0;
+                    if (isParallel) {
+                        for (auto j = 0; j < omp_get_max_threads(); ++j) {
+                            element += elements[brightIndex + j * 256];
+                        }
+                    } else {
+                        element = elements[brightIndex];
+                    }
+                    if (brightCount < ignoreCount) {
+                        brightCount += element;
+                    }
 
-            if (darkCount >= ignoreCount && element != 0) {
-                isDarkComplete = true;
-                min_v = darkIndex;
-            }
-        }
-
-        if (!isBrightComplete) {
-            size_t brightIndex = 255 - i;
-            int element = 0;
-            if (isParallel) {
-                for (auto j = 0; j < omp_get_max_threads(); ++j) {
-                    element += elements[brightIndex + j * 256];
+                    if (brightCount >= ignoreCount && element != 0) {
+                        isBrightComplete = true;
+                        max_v = brightIndex;
+                    }
+                } else if (isParallel) {
+                    break;
                 }
-            } else {
-                element = elements[brightIndex];
-            }
-            if (brightCount < ignoreCount) {
-                brightCount += element;
             }
 
-            if (brightCount >= ignoreCount && element != 0) {
-                isBrightComplete = true;
-                max_v = brightIndex;
+            if (!isParallel && isDarkComplete && isBrightComplete) {
+                break;
             }
-        }
-
-        if (isDarkComplete && isBrightComplete) {
-            break;
         }
     }
 
