@@ -71,7 +71,7 @@ void PNMPicture::write(ofstream& outputFile) const {
     outputFile.write((char*) &data[0], width * height * colorsCount);
 }
 
-void PNMPicture::printInfo() const {
+void PNMPicture::printInfo() const noexcept {
     cout << "Format = P" << format << endl;
     cout << "W x H = " << width << " x " << height << endl;
     cout << "Colors = " << colors << endl;
@@ -102,7 +102,7 @@ void PNMPicture::printInfo() const {
 // omp + simd + ilp
 
 // TODO: оптимизировать и сделать игнорирование для разных каналов раздельно
-void PNMPicture::modify(float coeff, bool isDebug, bool isParallel) {
+void PNMPicture::modify(float coeff, bool isDebug, bool isParallel) noexcept {
     size_t size = data.size();
 
     size_t ignoreCount = size * coeff;
@@ -153,7 +153,7 @@ void PNMPicture::determineMinMax(
     size_t ignoreCount,
     const vector<size_t> &elements,
     uchar &min_v, uchar &max_v
-) const {
+) const noexcept {
 
     int darkCount = 0;
     bool isDarkComplete = false;
@@ -225,9 +225,7 @@ void PNMPicture::determineMinMax(
     }
 }
 
-void PNMPicture::analyzeData(vector<size_t> & elements, bool isParallel) const {
-    size_t size = data.size();
-
+void PNMPicture::analyzeData(vector<size_t> & elements, bool isParallel) const noexcept {
     if (isParallel) {
         int threads_num = omp_get_max_threads();
         elements.resize(256 * threads_num, 0);
@@ -235,14 +233,14 @@ void PNMPicture::analyzeData(vector<size_t> & elements, bool isParallel) const {
 #pragma omp parallel default(shared) if(isParallel)
         {
 #pragma omp for schedule(guided)
-            for (size_t i = 0; i < size; ++i) {
-                auto index = data[i] + 256 * omp_get_thread_num();
-                elements[index] += 1;
+            for (size_t i = 0; i < data.size(); ++i) {
+                auto index1 = data[i] + 256 * omp_get_thread_num();
+                elements[index1] += 1;
             }
         }
     } else {
         elements.resize(256, 0);
-        for (size_t i = 0; i < size; i++) {
+        for (size_t i = 0; i < data.size(); i++) {
             int v = data[i];
             elements[v] += 1;
         }
