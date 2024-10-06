@@ -35,12 +35,19 @@ inline bool isFileExists(const std::string& name) {
     return (stat (name.c_str(), &buffer) == 0);
 }
 
-#define DEBUG
+//#define DEBUG
+//#define PARALLEL
+#define MANY
 
-int main(int argc, char* argv[]) {
+int pseudoMain(int argc, char* argv[]) {
     bool isDebug = false;
 #ifdef DEBUG
     isDebug = true;
+#endif
+
+    bool isParallel = false;
+#ifdef PARALLEL
+    isParallel = true;
 #endif
 
     map<string, string> argsMap = {};
@@ -62,8 +69,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    string inputFileName = "/Users/kluzhev-igor/CLionProjects/ContrastBalancer/Images/";
-    inputFileName.append(argsMap[constants::inputFileParam]);
+    string inputFileName = argsMap[constants::inputFileParam];
 
     if (!isFileExists(inputFileName)) {
         cerr << "No file with name " << inputFileName << endl;
@@ -93,9 +99,20 @@ int main(int argc, char* argv[]) {
     int elapsedTime = timeMonitor.stop();
     cout << "Time: " << elapsedTime << endl;
 
-    string newPictureFilename = "/Users/kluzhev-igor/CLionProjects/ContrastBalancer/Images/";
-    newPictureFilename.append(argsMap[constants::outputFileParam]);
+    string newPictureFilename = argsMap[constants::outputFileParam];
     picture.write(newPictureFilename);
+    return 0;
+}
+
+int main(int argc, char* argv[]) {
+
+    int count = 1;
+#ifdef MANY
+    count = 10;
+#endif
+    for (auto i = 0; i < count; i++) {
+        pseudoMain(argc, argv);
+    }
 
     return 0;
 }
