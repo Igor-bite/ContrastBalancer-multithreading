@@ -37,7 +37,7 @@ inline bool isFileExists(const std::string& name) {
 
 //#define DEBUG
 #define PARALLEL
-#define MANY
+//#define MANY
 
 int pseudoMain(int argc, char* argv[]) {
     bool isDebug = false;
