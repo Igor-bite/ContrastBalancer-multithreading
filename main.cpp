@@ -36,8 +36,8 @@ inline bool isFileExists(const std::string& name) {
 }
 
 //#define DEBUG
-//#define PARALLEL
-#define MANY
+#define PARALLEL
+//#define MANY
 
 int pseudoMain(int argc, char* argv[]) {
     bool isDebug = false;
@@ -93,11 +93,10 @@ int pseudoMain(int argc, char* argv[]) {
         cout << "coef = " << coeff << endl;
     }
 
-    auto timeMonitor = TimeMonitor();
+    auto timeMonitor = TimeMonitor("Main", true);
     timeMonitor.start();
     picture.modify(coeff, isDebug, isParallel);
-    int elapsedTime = timeMonitor.stop();
-    cout << "Time: " << elapsedTime << endl;
+    timeMonitor.stop();
 
     string newPictureFilename = argsMap[constants::outputFileParam];
     picture.write(newPictureFilename);

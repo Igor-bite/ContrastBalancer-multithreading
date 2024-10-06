@@ -5,6 +5,7 @@
 #include "pnm.h"
 #include <omp.h>
 #include <cmath>
+#include "time_monitor.h"
 
 PNMPicture::PNMPicture() = default;
 PNMPicture::PNMPicture(string filename) {
@@ -110,7 +111,46 @@ void PNMPicture::modify(float coeff, bool isDebug, bool isParallel) {
     vector<size_t> elements;
     uchar min_v = 255;
     uchar max_v = 0;
+
+    auto analyzeTM = TimeMonitor("analyzeData", true);
+    analyzeTM.start();
     analyzeData(elements, isParallel);
+    analyzeTM.stop();
+
+    auto analyzeMinMax = TimeMonitor("determineMinMax", true);
+    analyzeMinMax.start();
+    determineMinMax(isDebug, isParallel, ignoreCount, elements, min_v, max_v);
+    analyzeMinMax.stop();
+
+    if (min_v == 0 && max_v == 255) {
+        return;
+    }
+
+    float scale = 255.0 / float(max_v - min_v);
+
+    if (isDebug) {
+        cout << "Scale = " << scale << endl << endl;
+    }
+
+    auto scalingTM = TimeMonitor("scaling", true);
+    scalingTM.start();
+    for (size_t i = 0; i < size; i++) {
+        // TODO: разобраться с типами и кастами
+        uchar value = data[i];
+        int scaledValue = int(scale * (int(value) - int(min_v)));
+        uchar limitedValue = max(0, min(scaledValue, 255));
+        data[i] = limitedValue;
+    }
+    scalingTM.stop();
+}
+
+void PNMPicture::determineMinMax(
+    bool isDebug,
+    bool isParallel,
+    int ignoreCount,
+    const vector<size_t> &elements,
+    uchar &min_v, uchar &max_v
+) const {
 
     int darkCount = 0;
     bool isDarkComplete = false;
@@ -166,24 +206,6 @@ void PNMPicture::modify(float coeff, bool isDebug, bool isParallel) {
     if (isDebug) {
         cout << "Min = " << int(min_v) << endl;
         cout << "Max = " << int(max_v) << endl << endl;
-    }
-
-    if (min_v == 0 && max_v == 255) {
-        return;
-    }
-
-    float scale = 255.0 / float(max_v - min_v);
-
-    if (isDebug) {
-        cout << "Scale = " << scale << endl << endl;
-    }
-
-    for (size_t i = 0; i < size; i++) {
-        // TODO: разобраться с типами и кастами
-        uchar value = data[i];
-        int scaledValue = int(scale * (int(value) - int(min_v)));
-        uchar limitedValue = max(0, min(scaledValue, 255));
-        data[i] = limitedValue;
     }
 }
 

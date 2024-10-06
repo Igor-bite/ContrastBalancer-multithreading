@@ -8,7 +8,10 @@
 
 using namespace std;
 
-TimeMonitor::TimeMonitor() = default;
+TimeMonitor::TimeMonitor(string label, bool autoPrintOnStop) {
+    this->label = label;
+    this->autoPrintOnStop = autoPrintOnStop;
+}
 
 void TimeMonitor::start() {
     start_time = omp_get_wtime();
@@ -17,10 +20,13 @@ void TimeMonitor::start() {
 
 int TimeMonitor::stop() {
     double end_time = omp_get_wtime();
+    int elapsedTime;
     if (isActive) {
         isActive = false;
-        return int((end_time - start_time) * 1000);
+        elapsedTime = int((end_time - start_time) * 1000);
     } else {
-        return -1;
+        elapsedTime = -1;
     }
+    cout << "[" + label + "] Time: " << elapsedTime << "ms" << endl;
+    return elapsedTime;
 }

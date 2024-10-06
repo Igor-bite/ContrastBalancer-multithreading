@@ -58,6 +58,9 @@ public:
 
 private:
     void analyzeData(vector<size_t> &elements, bool isParallel) const;
+
+    void determineMinMax(bool isDebug, bool isParallel, int ignoreCount, const vector<size_t> &elements, uchar &min_v,
+                         uchar &max_v) const;
 };
 
 
