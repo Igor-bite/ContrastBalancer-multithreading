@@ -106,9 +106,6 @@ void PNMPicture::modify(float coeff, bool isDebug, bool isParallel, int threads_
     size_t size = data.size();
 
     size_t ignoreCount = size * coeff;
-    if (isDebug) {
-        cout << "Ignoring " << ignoreCount << " values at each side" << endl << endl;
-    }
     vector<size_t> elements;
     uchar min_v = 255;
     uchar max_v = 0;
@@ -130,18 +127,20 @@ void PNMPicture::modify(float coeff, bool isDebug, bool isParallel, int threads_
     float const scale = 255 / float(max_v - min_v);
     float scaledMinV = scale * float(min_v);
 
-    if (isDebug) {
-        cout << "Scale = " << scale << endl << endl;
-    }
-
     auto scalingTM = TimeMonitor("scaling", true);
     scalingTM.start();
 
+    // TODO: проверить не выйдем ли за границы (если size не делится на 4)
 #pragma omp parallel for schedule(guided) if(isParallel) num_threads(threads_count)
-    for (size_t i = 0; i < size; i++) {
-        uchar value = data[i];
-        int scaledValue = int(scale * float(value) - scaledMinV);
-        data[i] = max(0, min(scaledValue, 255));
+    for (size_t i = 0; i < size; i += 4) {
+        int scaledValue1 = int(scale * float(data[i]) - scaledMinV);
+        data[i] = max(0, min(scaledValue1, 255));
+        int scaledValue2 = int(scale * float(data[i+1]) - scaledMinV);
+        data[i+1] = max(0, min(scaledValue2, 255));
+        int scaledValue3 = int(scale * float(data[i+2]) - scaledMinV);
+        data[i+2] = max(0, min(scaledValue3, 255));
+        int scaledValue4 = int(scale * float(data[i+3]) - scaledMinV);
+        data[i+3] = max(0, min(scaledValue4, 255));
     }
 
     scalingTM.stop();
@@ -221,14 +220,11 @@ void PNMPicture::determineMinMax(
             }
         }
     }
-
-    if (isDebug) {
-        cout << "Min = " << int(min_v) << endl;
-        cout << "Max = " << int(max_v) << endl << endl;
-    }
 }
 
 void PNMPicture::analyzeData(vector<size_t> & elements, bool isParallel, int threads_count) const noexcept {
+
+    // TODO: ILP: надо проверять, что не выйдем в конце за границы массива
     if (isParallel) {
         elements.resize(256 * threads_count, 0);
 
@@ -236,16 +232,28 @@ void PNMPicture::analyzeData(vector<size_t> & elements, bool isParallel, int thr
         {
             int thread = omp_get_thread_num();
 #pragma omp for schedule(guided)
-            for (size_t i = 0; i < data.size(); ++i) {
-                auto index = data[i] + 256 * thread;
-                elements[index] += 1;
+            for (size_t i = 0; i < data.size(); i += 4) {
+                auto index1 = data[i] + 256 * thread;
+                auto index2 = data[i+1] + 256 * thread;
+                auto index3 = data[i+2] + 256 * thread;
+                auto index4 = data[i+3] + 256 * thread;
+                elements[index1] += 1;
+                elements[index2] += 1;
+                elements[index3] += 1;
+                elements[index4] += 1;
             }
         }
     } else {
         elements.resize(256, 0);
-        for (size_t i = 0; i < data.size(); i++) {
-            int v = data[i];
-            elements[v] += 1;
+        for (size_t i = 0; i < data.size(); i += 4) {
+            int v1 = data[i];
+            int v2 = data[i+1];
+            int v3 = data[i+2];
+            int v4 = data[i+3];
+            elements[v1] += 1;
+            elements[v2] += 1;
+            elements[v3] += 1;
+            elements[v4] += 1;
         }
     }
 }

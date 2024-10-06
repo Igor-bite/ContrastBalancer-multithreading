@@ -53,12 +53,6 @@ int pseudoMain(int argc, char* argv[], int threads_count) {
     map<string, string> argsMap = {};
     parseArguments(argsMap, argc, argv);
 
-    if (isDebug) {
-        for (auto arg: argsMap) {
-            cout << arg.first << " - " << arg.second << endl;
-        }
-    }
-
     if (argsMap[constants::helpFlag] == args_parser_constants::trueFlagValue) {
         printHelp();
         return 0;
@@ -88,11 +82,6 @@ int pseudoMain(int argc, char* argv[], int threads_count) {
     }
 
     float coeff = stof(argsMap[constants::coefParam]);
-    if (isDebug) {
-        picture.printInfo();
-        cout << "coef = " << coeff << endl;
-    }
-
     auto timeMonitor = TimeMonitor("main", true);
     timeMonitor.start();
     picture.modify(coeff, isDebug, isParallel, threads_count);
