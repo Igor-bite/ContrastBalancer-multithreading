@@ -3,8 +3,8 @@
 //
 
 #include "pnm.h"
+#include <omp.h>
 #include <cmath>
-#include <stdio.h>
 
 PNMPicture::PNMPicture() = default;
 PNMPicture::PNMPicture(string filename) {
@@ -90,27 +90,27 @@ void PNMPicture::printInfo() const {
 }
 
 // 1) изначально при итерировании собираем кол-ва по каждому цвету
-// дополнительно считаем сумму светлых и тёмных цветов
+// (возможно не надо) дополнительно считаем сумму светлых и тёмных цветов
 // 2) при итерировании по цветам суммируем кол-во для тёмных и светлых
 // 3) при достижении нужного кол-ва - идём дальше
 // и сохраняем первый попавшийся индекс с ненулевым значением как минимальный/максимальный цвет
 // 4) вычисляем min/max
 // 5) пробегаемся ещё раз и меняем значения
-// не забыть посчитать коэффициент умножения заранее
-// как оптимизация: для цветов можно сохранять умноженные значения в мапе (надо проверить будет ли профит)
+// не забыть посчитать коэффициент умножения заранее - done
+// omp + simd + ilp
 
 // TODO: оптимизировать и сделать игнорирование для разных каналов раздельно
-void PNMPicture::modify(float coeff, bool isDebug) {
+void PNMPicture::modify(float coeff, bool isDebug, bool isParallel) {
     size_t size = data.size();
 
     int ignoreCount = size * coeff;
     if (isDebug) {
         cout << "Ignoring " << ignoreCount << " values at each side" << endl << endl;
     }
-    vector<int> elements;
+    vector<size_t> elements;
     uchar min_v = 255;
     uchar max_v = 0;
-    analyzeData(elements);
+    analyzeData(elements, isParallel);
 
     int darkCount = 0;
     bool isDarkComplete = false;
@@ -120,7 +120,14 @@ void PNMPicture::modify(float coeff, bool isDebug) {
     for (size_t i = 0; i < 128; i++) {
         if (!isDarkComplete) {
             size_t darkIndex = i;
-            int element = elements[darkIndex];
+            int element = 0;
+            if (isParallel) {
+                for (auto j = 0; j < omp_get_max_threads(); ++j) {
+                    element += elements[darkIndex + j * 256];
+                }
+            } else {
+                element = elements[darkIndex];
+            }
             if (darkCount < ignoreCount) {
                 darkCount += element;
             }
@@ -133,7 +140,14 @@ void PNMPicture::modify(float coeff, bool isDebug) {
 
         if (!isBrightComplete) {
             size_t brightIndex = 255 - i;
-            int element = elements[brightIndex];
+            int element = 0;
+            if (isParallel) {
+                for (auto j = 0; j < omp_get_max_threads(); ++j) {
+                    element += elements[brightIndex + j * 256];
+                }
+            } else {
+                element = elements[brightIndex];
+            }
             if (brightCount < ignoreCount) {
                 brightCount += element;
             }
@@ -161,7 +175,7 @@ void PNMPicture::modify(float coeff, bool isDebug) {
     float scale = 255.0 / float(max_v - min_v);
 
     if (isDebug) {
-        cout << "scale = " << scale << endl << endl;
+        cout << "Scale = " << scale << endl << endl;
     }
 
     for (size_t i = 0; i < size; i++) {
@@ -173,18 +187,26 @@ void PNMPicture::modify(float coeff, bool isDebug) {
     }
 }
 
-void PNMPicture::analyzeData(vector<int> &elements) const {
+void PNMPicture::analyzeData(vector<size_t> & elements, bool isParallel) const {
     size_t size = data.size();
-    elements.resize(256, 0);
-    int darkFullCount = 0;
-    int brightFullCount = 0;
-    for (size_t i = 0; i < size; i++) {
-        int v = data[i];
-        elements[v] += 1;
-        if (v < 128) {
-            darkFullCount += 1;
-        } else {
-            brightFullCount += 1;
+
+    if (isParallel) {
+        int threads_num = omp_get_max_threads();
+        elements.resize(256 * threads_num, 0);
+
+#pragma omp parallel default(shared) if(isParallel)
+        {
+#pragma omp for schedule(guided)
+            for (size_t i = 0; i < size; ++i) {
+                auto index = data[i] + 256 * omp_get_thread_num();
+                elements[index] += 1;
+            }
+        }
+    } else {
+        elements.resize(256, 0);
+        for (size_t i = 0; i < size; i++) {
+            int v = data[i];
+            elements[v] += 1;
         }
     }
 }

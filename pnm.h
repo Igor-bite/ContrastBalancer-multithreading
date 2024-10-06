@@ -49,7 +49,7 @@ public:
     void write(ofstream& outputFile) const;
 
     void printInfo() const;
-    void modify(float coeff, bool isDebug);
+    void modify(float coeff, bool isDebug, bool isParallel);
 
     int format;
     int width, height;
@@ -57,7 +57,7 @@ public:
     vector<uchar> data;
 
 private:
-    void analyzeData(vector<int> &elements) const;
+    void analyzeData(vector<size_t> &elements, bool isParallel) const;
 };
 
 
