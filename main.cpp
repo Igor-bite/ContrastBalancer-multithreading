@@ -21,11 +21,11 @@ namespace constants {
 
 void printHelp() {
     string output = "========= Help page =========\n";
-    output.append("--help - shows this help page\n");
-    output.append("--input [fname] - input filename with pnm/ppm format\n");
-    output.append("--output [fname] - output file for modified image\n");
-    output.append("--coef [coef] - coefficient for ignoring not important colors\n");
-    output.append("--no-omp | --omp-threads [num_threads | default] - multithreading options\n\n");
+    output.append(constants::helpFlag + " - shows this help page\n");
+    output.append(constants::inputFileParam + " [fname] - input filename with pnm/ppm format\n");
+    output.append(constants::outputFileParam + " [fname] - output file for modified image\n");
+    output.append(constants::coefParam + " [coef] - coefficient for ignoring not important colors\n");
+    output.append(constants::ompOff + " | " + constants::ompThreads + " [num_threads | default] - multithreading options\n\n");
     printf(output.c_str());
 }
 
@@ -35,8 +35,6 @@ inline bool isFileExists(const std::string& name) {
 }
 
 int pseudoMain(int argc, char* argv[]) {
-    bool isDebug = false;
-
     map<string, string> argsMap = {};
     parseArguments(argsMap, argc, argv);
 
