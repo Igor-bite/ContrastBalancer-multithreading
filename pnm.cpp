@@ -72,22 +72,21 @@ void PNMPicture::write(ofstream& outputFile) const {
 }
 
 // 1) изначально при итерировании собираем кол-ва по каждому цвету
-// (возможно не надо) дополнительно считаем сумму светлых и тёмных цветов
 // 2) при итерировании по цветам суммируем кол-во для тёмных и светлых
 // 3) при достижении нужного кол-ва - идём дальше
 // и сохраняем первый попавшийся индекс с ненулевым значением как минимальный/максимальный цвет
 // 4) вычисляем min/max
 // 5) пробегаемся ещё раз и меняем значения
-// не забыть посчитать коэффициент умножения заранее - done
+// методы: omp + simd + ilp
 // TODO: если один цвет - ничего не делать
-// omp + simd + ilp
-
-// TODO: оптимизировать и сделать игнорирование для разных каналов раздельно
-// TODO: Если изображение состоит только из одного значения, то оно не меняется - сделать
 
 
 void PNMPicture::modify(float coeff) noexcept {
     size_t size = data.size();
+
+    if (size == 1) {
+        return;
+    }
 
     size_t ignoreCount = size * coeff;
     vector<size_t> elements;
@@ -120,6 +119,10 @@ void PNMPicture::modify(float coeff) noexcept {
 
 void PNMPicture::modifyParallel(float coeff, int threads_count) noexcept {
     size_t size = data.size();
+
+    if (size == 1) {
+        return;
+    }
 
     size_t ignoreCount = size * coeff;
     vector<size_t> elements;
@@ -218,14 +221,14 @@ void PNMPicture::determineMinMaxParallel(
     int brightCount = 0;
     bool isBrightComplete = false;
 
-#pragma omp parallel firstprivate(darkCount, isDarkComplete, brightCount, isBrightComplete) shared(min_v, max_v) num_threads(2)
+#pragma omp parallel firstprivate(darkCount, isDarkComplete, brightCount, isBrightComplete) shared(min_v, max_v) num_threads(max(threads_count, 2))
     {
         auto threadNum = omp_get_thread_num();
 
         for (size_t i = 0; i < 128; i++) {
             bool isDarkHandler = threadNum == 0;
 
-            if (isDarkHandler) {
+            if (isDarkHandler || threads_count == 1) {
                 if (!isDarkComplete) {
                     size_t darkIndex = i;
                     int element = 0;
@@ -243,7 +246,8 @@ void PNMPicture::determineMinMaxParallel(
                 } else {
                     break;
                 }
-            } else {
+            }
+            if (!isDarkHandler || threads_count == 1) {
                 if (!isBrightComplete) {
                     size_t brightIndex = 255 - i;
                     int element = 0;
@@ -302,5 +306,5 @@ void PNMPicture::analyzeDataParallel(
             elements[index3] += 1;
             elements[index4] += 1;
         }
-        }
+    }
 }
