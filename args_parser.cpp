@@ -10,9 +10,15 @@ void parseArguments(map<string, string>& argsMap, int argc, char* argv[]) {
     size_t i = 1;
     while (i < argc) {
         string curArg = string(argv[i]);
-        string nextArg = string(argv[i + 1]);
+        bool isCurParamFlag;
+        string nextArg;
+        if (i + 1 < argc) {
+            nextArg = string(argv[i + 1]);
+            isCurParamFlag = nextArg.starts_with("-");
+        } else {
+            isCurParamFlag = true;
+        }
 
-        bool isCurParamFlag = nextArg.starts_with("-");
         if (isCurParamFlag) {
             argsMap[curArg] = args_parser_constants::trueFlagValue;
         } else {
@@ -22,33 +28,3 @@ void parseArguments(map<string, string>& argsMap, int argc, char* argv[]) {
         i += 1;
     }
 }
-/*
-
-    argsMap[constants::programPath] = argv[0];
-
-    size_t i = 1;
-    while (i < argc) {
-        string arg = string(argv[i]);
-        arg = arg.substr(2, arg.length());
-        if (arg == constants::helpFlag) {
-            argsMap[constants::helpFlag] = "1";
-        }
-        if (arg == constants::inputFileParam) {
-            argsMap[constants::inputFileParam] = string(argv[i + 1]);
-            i += 1;
-        }
-        if (arg == constants::outputFileParam) {
-            argsMap[constants::outputFileParam] = string(argv[i + 1]);
-            i += 1;
-        }
-        if (arg == constants::coefParam) {
-            argsMap[constants::coefParam] = string(argv[i + 1]);
-            i += 1;
-        }
-        if (arg == constants::ompOff) {
-            argsMap[constants::ompOff] = "1";
-        }
-        i += 1;
-    }
-
- */

@@ -17,6 +17,8 @@ namespace constants {
     static string helpFlag = "--help";
     static string coefParam = "--coef";
     static string ompOff = "--no-omp";
+    static string ompThreads = "--omp-threads";
+    static string ompThreadsDefaultValue = "default";
 };
 
 void printHelp() {
@@ -35,20 +37,8 @@ inline bool isFileExists(const std::string& name) {
     return (stat (name.c_str(), &buffer) == 0);
 }
 
-//#define DEBUG
-#define PARALLEL
-//#define MANY
-
-int pseudoMain(int argc, char* argv[], int threads_count) {
+int pseudoMain(int argc, char* argv[]) {
     bool isDebug = false;
-#ifdef DEBUG
-    isDebug = true;
-#endif
-
-    bool isParallel = false;
-#ifdef PARALLEL
-    isParallel = true;
-#endif
 
     map<string, string> argsMap = {};
     parseArguments(argsMap, argc, argv);
@@ -58,9 +48,17 @@ int pseudoMain(int argc, char* argv[], int threads_count) {
         return 0;
     }
 
-    if (argc < 7 || argc > 8) {
-        cerr << "Incorrect count of arguments" << endl;
-        return 1;
+    bool isOmpOff = argsMap[constants::ompOff] == args_parser_constants::trueFlagValue;
+    int threads_count;
+    if (!isOmpOff) {
+        string ompThreads = argsMap[constants::ompThreads];
+        if (ompThreads == constants::ompThreadsDefaultValue) {
+            threads_count = omp_get_max_threads();
+        } else {
+            threads_count = stoi(ompThreads);
+        }
+    } else {
+        threads_count = 1;
     }
 
     string inputFileName = argsMap[constants::inputFileParam];
@@ -84,7 +82,7 @@ int pseudoMain(int argc, char* argv[], int threads_count) {
     float coeff = stof(argsMap[constants::coefParam]);
     auto timeMonitor = TimeMonitor("main", true);
     timeMonitor.start();
-    picture.modify(coeff, isDebug, isParallel, threads_count);
+    picture.modify(coeff, isDebug, !isOmpOff, threads_count);
     timeMonitor.stop();
 
     string newPictureFilename = argsMap[constants::outputFileParam];
@@ -93,15 +91,6 @@ int pseudoMain(int argc, char* argv[], int threads_count) {
 }
 
 int main(int argc, char* argv[]) {
-    int count = 1;
-#ifdef MANY
-    count = 10;
-#endif
-    int threads_count = omp_get_max_threads();
-    for (auto i = 1; i <= count; i++) {
-        pseudoMain(argc, argv, threads_count);
-        cout << "-------------------------------------" << endl;
-    }
-
+    pseudoMain(argc, argv);
     return 0;
 }
