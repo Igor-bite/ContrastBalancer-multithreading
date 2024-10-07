@@ -59,6 +59,7 @@ int pseudoMain(int argc, char* argv[]) {
     }
 
     string inputFileName = argsMap[constants::inputFileParam];
+    string outputFilename = argsMap[constants::outputFileParam];
 
     if (!isFileExists(inputFileName)) {
         fprintf(stderr, "No file with name %s\n", inputFileName.c_str());
@@ -85,11 +86,13 @@ int pseudoMain(int argc, char* argv[]) {
 
     auto timeMonitor = TimeMonitor(threads_count, true);
     timeMonitor.start();
-    picture.modify(coeff, isDebug, !isOmpOff, threads_count);
+    if (isOmpOff) {
+        picture.modify(coeff);
+    } else {
+        picture.modifyParallel(coeff, threads_count);
+    }
     timeMonitor.stop();
-
-    string newPictureFilename = argsMap[constants::outputFileParam];
-    picture.write(newPictureFilename);
+    picture.write(outputFilename);
     return 0;
 }
 

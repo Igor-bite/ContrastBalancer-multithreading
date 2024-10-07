@@ -29,13 +29,6 @@ public:
     }
 };
 
-class ExecutionException : public exception {
-public:
-    const char* what() const _NOEXCEPT override {
-        return "Failed to execute the command";
-    }
-};
-
 class PNMPicture {
 public:
     PNMPicture();
@@ -47,8 +40,8 @@ public:
     void write(const string& fileName) const;
     void write(ofstream& outputFile) const;
 
-    void printInfo() const noexcept;
-    void modify(float coeff, bool isDebug, bool isParallel, int threads_count) noexcept;
+    void modify(float coeff) noexcept;
+    void modifyParallel(float coeff, int threads_count) noexcept;
 
     int format;
     int width, height;
@@ -56,9 +49,12 @@ public:
     vector<uchar> data;
 
 private:
-    void analyzeData(vector<size_t> &elements, bool isParallel, int threads_count) const noexcept;
+    void analyzeData(vector<size_t> &elements) const noexcept;
+    void analyzeDataParallel(vector<size_t> &elements, int threads_count) const noexcept;
 
-    void determineMinMax(bool isDebug, bool isParallel, size_t ignoreCount, const vector<size_t> &elements, uchar &min_v,
+    void determineMinMax(size_t ignoreCount, const vector<size_t> &elements, uchar &min_v,
+                         uchar &max_v) const noexcept;
+    void determineMinMaxParallel(size_t ignoreCount, const vector<size_t> &elements, uchar &min_v,
                          uchar &max_v, int threads_count) const noexcept;
 };
 
