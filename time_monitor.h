@@ -11,16 +11,16 @@ using namespace std;
 
 class TimeMonitor {
 public:
-    explicit TimeMonitor(string label, bool autoPrintOnStop);
+    explicit TimeMonitor(int threadsNum, bool autoPrintOnStop);
 
     void start();
-    int stop();
+    void stop();
 
 private:
     double start_time;
     bool isActive = false;
     bool autoPrintOnStop;
-    string label;
+    int threadsNum;
 };
 
 #endif //TESTPROJECT_TIME_MONITOR_H

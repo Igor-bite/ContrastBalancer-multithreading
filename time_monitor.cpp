@@ -3,13 +3,12 @@
 //
 
 #include "time_monitor.h"
-#include <iostream>
 #include <omp.h>
 
 using namespace std;
 
-TimeMonitor::TimeMonitor(string label, bool autoPrintOnStop) {
-    this->label = label;
+TimeMonitor::TimeMonitor(int threadsNum, bool autoPrintOnStop) {
+    this->threadsNum = threadsNum;
     this->autoPrintOnStop = autoPrintOnStop;
 }
 
@@ -18,15 +17,12 @@ void TimeMonitor::start() {
     isActive = true;
 }
 
-int TimeMonitor::stop() {
+void TimeMonitor::stop() {
     double end_time = omp_get_wtime();
-    int elapsedTime;
+    double elapsedTime;
     if (isActive) {
         isActive = false;
-        elapsedTime = int((end_time - start_time) * 1000);
-    } else {
-        elapsedTime = -1;
+        elapsedTime = (end_time - start_time) * 1000;
+        printf("Time (%i threads): %lg\n", threadsNum, elapsedTime);
     }
-    cout << "[" + label + "] Time: " << elapsedTime << "ms" << endl;
-    return elapsedTime;
 }

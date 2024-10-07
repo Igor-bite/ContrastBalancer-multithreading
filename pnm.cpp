@@ -71,25 +71,6 @@ void PNMPicture::write(ofstream& outputFile) const {
     outputFile.write((char*) &data[0], width * height * colorsCount);
 }
 
-void PNMPicture::printInfo() const noexcept {
-    cout << "Format = P" << format << endl;
-    cout << "W x H = " << width << " x " << height << endl;
-    cout << "Colors = " << colors << endl;
-    cout << "Data size = " << data.size() << endl;
-
-    size_t size = data.size();
-    uchar min_v = 255;
-    uchar max_v = 0;
-    for (size_t i = 0; i < size; i++) {
-        uchar v = data[i];
-        min_v = min(min_v, v);
-        max_v = max(max_v, v);
-    }
-
-    cout << "Min = " << int(min_v) << endl;
-    cout << "Max = " << int(max_v) << endl << endl;
-}
-
 // 1) изначально при итерировании собираем кол-ва по каждому цвету
 // (возможно не надо) дополнительно считаем сумму светлых и тёмных цветов
 // 2) при итерировании по цветам суммируем кол-во для тёмных и светлых
@@ -102,23 +83,18 @@ void PNMPicture::printInfo() const noexcept {
 // omp + simd + ilp
 
 // TODO: оптимизировать и сделать игнорирование для разных каналов раздельно
+// TODO: Если изображение состоит только из одного значения, то оно не меняется - сделать
 void PNMPicture::modify(float coeff, bool isDebug, bool isParallel, int threads_count) noexcept {
     size_t size = data.size();
 
     size_t ignoreCount = size * coeff;
     vector<size_t> elements;
-    uchar min_v = 255;
-    uchar max_v = 0;
+    uchar min_v = 256;
+    uchar max_v = -1;
 
-    auto analyzeTM = TimeMonitor("analyzeData", true);
-    analyzeTM.start();
     analyzeData(elements, isParallel, threads_count);
-    analyzeTM.stop();
 
-    auto analyzeMinMax = TimeMonitor("determineMinMax", true);
-    analyzeMinMax.start();
     determineMinMax(isDebug, isParallel, ignoreCount, elements, min_v, max_v, threads_count);
-    analyzeMinMax.stop();
 
     if (min_v == 0 && max_v == 255) {
         return;
@@ -126,9 +102,6 @@ void PNMPicture::modify(float coeff, bool isDebug, bool isParallel, int threads_
 
     float const scale = 255 / float(max_v - min_v);
     float scaledMinV = scale * float(min_v);
-
-    auto scalingTM = TimeMonitor("scaling", true);
-    scalingTM.start();
 
     // TODO: проверить не выйдем ли за границы (если size не делится на 4)
 #pragma omp parallel for schedule(guided) if(isParallel) num_threads(threads_count)
@@ -142,8 +115,6 @@ void PNMPicture::modify(float coeff, bool isDebug, bool isParallel, int threads_
         int scaledValue4 = int(scale * float(data[i+3]) - scaledMinV);
         data[i+3] = max(0, min(scaledValue4, 255));
     }
-
-    scalingTM.stop();
 }
 
 void PNMPicture::determineMinMax(
