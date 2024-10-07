@@ -47,6 +47,9 @@ public:
     int width, height;
     int colors;
     vector<uchar> data;
+    bool is2ILPSupported = false;
+    bool is3ILPSupported = false;
+    bool is4ILPSupported = false;
 
 private:
     void analyzeData(vector<size_t> &elements) const noexcept;

@@ -38,6 +38,14 @@ void PNMPicture::read(ifstream& inputFile) {
     inputFile >> width >> height;
     inputFile >> colors;
 
+    if (width % 4 == 0 || height % 4 == 0 || (width % 2 == 0 && height % 2 == 0)) {
+        is4ILPSupported = true;
+    } else if (format == 6) {
+        is3ILPSupported = true;
+    } else if (height % 2 == 0 || width % 2 == 0) {
+        is2ILPSupported = true;
+    }
+
     inputFile.get();
 
     size_t dataSize = width * height * colorsCount;
@@ -104,16 +112,38 @@ void PNMPicture::modify(float coeff) noexcept {
     float const scale = 255 / float(max_v - min_v);
     float scaledMinV = scale * float(min_v);
 
-    // TODO: проверить не выйдем ли за границы (если size не делится на 4)
-    for (size_t i = 0; i < size; i += 4) {
-        int scaledValue1 = int(scale * float(data[i]) - scaledMinV);
-        data[i] = max(0, min(scaledValue1, 255));
-        int scaledValue2 = int(scale * float(data[i+1]) - scaledMinV);
-        data[i+1] = max(0, min(scaledValue2, 255));
-        int scaledValue3 = int(scale * float(data[i+2]) - scaledMinV);
-        data[i+2] = max(0, min(scaledValue3, 255));
-        int scaledValue4 = int(scale * float(data[i+3]) - scaledMinV);
-        data[i+3] = max(0, min(scaledValue4, 255));
+    if (is2ILPSupported) {
+        for (size_t i = 0; i < size; i += 2) {
+            int scaledValue1 = int(scale * float(data[i]) - scaledMinV);
+            data[i] = max(0, min(scaledValue1, 255));
+            int scaledValue2 = int(scale * float(data[i+1]) - scaledMinV);
+            data[i+1] = max(0, min(scaledValue2, 255));
+        }
+    } else if (is3ILPSupported) {
+        for (size_t i = 0; i < size; i += 3) {
+            int scaledValue1 = int(scale * float(data[i]) - scaledMinV);
+            data[i] = max(0, min(scaledValue1, 255));
+            int scaledValue2 = int(scale * float(data[i+1]) - scaledMinV);
+            data[i+1] = max(0, min(scaledValue2, 255));
+            int scaledValue3 = int(scale * float(data[i+2]) - scaledMinV);
+            data[i+2] = max(0, min(scaledValue3, 255));
+        }
+    } else if (is4ILPSupported) {
+        for (size_t i = 0; i < size; i += 4) {
+            int scaledValue1 = int(scale * float(data[i]) - scaledMinV);
+            data[i] = max(0, min(scaledValue1, 255));
+            int scaledValue2 = int(scale * float(data[i+1]) - scaledMinV);
+            data[i+1] = max(0, min(scaledValue2, 255));
+            int scaledValue3 = int(scale * float(data[i+2]) - scaledMinV);
+            data[i+2] = max(0, min(scaledValue3, 255));
+            int scaledValue4 = int(scale * float(data[i+3]) - scaledMinV);
+            data[i+3] = max(0, min(scaledValue4, 255));
+        }
+    } else {
+        for (size_t i = 0; i < size; i++) {
+            int scaledValue1 = int(scale * float(data[i]) - scaledMinV);
+            data[i] = max(0, min(scaledValue1, 255));
+        }
     }
 }
 
@@ -139,17 +169,42 @@ void PNMPicture::modifyParallel(float coeff, int threads_count) noexcept {
     float const scale = 255 / float(max_v - min_v);
     float scaledMinV = scale * float(min_v);
 
-    // TODO: проверить не выйдем ли за границы (если size не делится на 4)
+    if (is2ILPSupported) {
 #pragma omp parallel for schedule(guided) num_threads(threads_count)
-    for (size_t i = 0; i < size; i += 4) {
-        int scaledValue1 = int(scale * float(data[i]) - scaledMinV);
-        data[i] = max(0, min(scaledValue1, 255));
-        int scaledValue2 = int(scale * float(data[i+1]) - scaledMinV);
-        data[i+1] = max(0, min(scaledValue2, 255));
-        int scaledValue3 = int(scale * float(data[i+2]) - scaledMinV);
-        data[i+2] = max(0, min(scaledValue3, 255));
-        int scaledValue4 = int(scale * float(data[i+3]) - scaledMinV);
-        data[i+3] = max(0, min(scaledValue4, 255));
+        for (size_t i = 0; i < size; i += 2) {
+            int scaledValue1 = int(scale * float(data[i]) - scaledMinV);
+            data[i] = max(0, min(scaledValue1, 255));
+            int scaledValue2 = int(scale * float(data[i+1]) - scaledMinV);
+            data[i+1] = max(0, min(scaledValue2, 255));
+        }
+    } else if (is3ILPSupported) {
+#pragma omp parallel for schedule(guided) num_threads(threads_count)
+        for (size_t i = 0; i < size; i += 3) {
+            int scaledValue1 = int(scale * float(data[i]) - scaledMinV);
+            data[i] = max(0, min(scaledValue1, 255));
+            int scaledValue2 = int(scale * float(data[i+1]) - scaledMinV);
+            data[i+1] = max(0, min(scaledValue2, 255));
+            int scaledValue3 = int(scale * float(data[i+2]) - scaledMinV);
+            data[i+2] = max(0, min(scaledValue3, 255));
+        }
+    } else if (is4ILPSupported) {
+#pragma omp parallel for schedule(guided) num_threads(threads_count)
+        for (size_t i = 0; i < size; i += 4) {
+            int scaledValue1 = int(scale * float(data[i]) - scaledMinV);
+            data[i] = max(0, min(scaledValue1, 255));
+            int scaledValue2 = int(scale * float(data[i+1]) - scaledMinV);
+            data[i+1] = max(0, min(scaledValue2, 255));
+            int scaledValue3 = int(scale * float(data[i+2]) - scaledMinV);
+            data[i+2] = max(0, min(scaledValue3, 255));
+            int scaledValue4 = int(scale * float(data[i+3]) - scaledMinV);
+            data[i+3] = max(0, min(scaledValue4, 255));
+        }
+    } else {
+#pragma omp parallel for schedule(guided) num_threads(threads_count)
+        for (size_t i = 0; i < size; i++) {
+            int scaledValue1 = int(scale * float(data[i]) - scaledMinV);
+            data[i] = max(0, min(scaledValue1, 255));
+        }
     }
 }
 
@@ -271,17 +326,40 @@ void PNMPicture::determineMinMaxParallel(
 }
 
 void PNMPicture::analyzeData(vector<size_t> & elements) const noexcept {
-    // TODO: ILP: надо проверять, что не выйдем в конце за границы массива
     elements.resize(256, 0);
-    for (size_t i = 0; i < data.size(); i += 4) {
-        int v1 = data[i];
-        int v2 = data[i+1];
-        int v3 = data[i+2];
-        int v4 = data[i+3];
-        elements[v1] += 1;
-        elements[v2] += 1;
-        elements[v3] += 1;
-        elements[v4] += 1;
+
+    if (is2ILPSupported) {
+        for (size_t i = 0; i < data.size(); i += 2) {
+            int v1 = data[i];
+            int v2 = data[i+1];
+            elements[v1] += 1;
+            elements[v2] += 1;
+        }
+    } else if (is3ILPSupported) {
+        for (size_t i = 0; i < data.size(); i += 3) {
+            int v1 = data[i];
+            int v2 = data[i+1];
+            int v3 = data[i+2];
+            elements[v1] += 1;
+            elements[v2] += 1;
+            elements[v3] += 1;
+        }
+    } else if (is4ILPSupported) {
+        for (size_t i = 0; i < data.size(); i += 4) {
+            int v1 = data[i];
+            int v2 = data[i+1];
+            int v3 = data[i+2];
+            int v4 = data[i+3];
+            elements[v1] += 1;
+            elements[v2] += 1;
+            elements[v3] += 1;
+            elements[v4] += 1;
+        }
+    } else {
+        for (size_t i = 0; i < data.size(); i++) {
+            int v1 = data[i];
+            elements[v1] += 1;
+        }
     }
 }
 
@@ -289,22 +367,59 @@ void PNMPicture::analyzeDataParallel(
     vector<size_t> &elements,
     int threads_count
 ) const noexcept {
-    // TODO: ILP: надо проверять, что не выйдем в конце за границы массива
     elements.resize(256 * threads_count, 0);
 
+    if (is2ILPSupported) {
 #pragma omp parallel default(shared) num_threads(threads_count)
-    {
-        int thread = omp_get_thread_num();
+        {
+            int thread = omp_get_thread_num();
 #pragma omp for schedule(guided)
-        for (size_t i = 0; i < data.size(); i += 4) {
-            auto index1 = data[i] + 256 * thread;
-            auto index2 = data[i+1] + 256 * thread;
-            auto index3 = data[i+2] + 256 * thread;
-            auto index4 = data[i+3] + 256 * thread;
-            elements[index1] += 1;
-            elements[index2] += 1;
-            elements[index3] += 1;
-            elements[index4] += 1;
+            for (size_t i = 0; i < data.size(); i += 2) {
+                auto index1 = data[i] + 256 * thread;
+                auto index2 = data[i + 1] + 256 * thread;
+                elements[index1] += 1;
+                elements[index2] += 1;
+            }
+        }
+    } else if (is3ILPSupported) {
+#pragma omp parallel default(shared) num_threads(threads_count)
+        {
+            int thread = omp_get_thread_num();
+#pragma omp for schedule(guided)
+            for (size_t i = 0; i < data.size(); i += 3) {
+                auto index1 = data[i] + 256 * thread;
+                auto index2 = data[i + 1] + 256 * thread;
+                auto index3 = data[i + 2] + 256 * thread;
+                elements[index1] += 1;
+                elements[index2] += 1;
+                elements[index3] += 1;
+            }
+        }
+    } else if (is4ILPSupported) {
+#pragma omp parallel default(shared) num_threads(threads_count)
+        {
+            int thread = omp_get_thread_num();
+#pragma omp for schedule(guided)
+            for (size_t i = 0; i < data.size(); i += 4) {
+                auto index1 = data[i] + 256 * thread;
+                auto index2 = data[i + 1] + 256 * thread;
+                auto index3 = data[i + 2] + 256 * thread;
+                auto index4 = data[i + 3] + 256 * thread;
+                elements[index1] += 1;
+                elements[index2] += 1;
+                elements[index3] += 1;
+                elements[index4] += 1;
+            }
+        }
+    } else {
+#pragma omp parallel default(shared) num_threads(threads_count)
+        {
+            int thread = omp_get_thread_num();
+#pragma omp for schedule(guided)
+            for (size_t i = 0; i < data.size(); i++) {
+                auto index1 = data[i] + 256 * thread;
+                elements[index1] += 1;
+            }
         }
     }
 }
