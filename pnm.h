@@ -15,20 +15,6 @@ using namespace std;
 
 typedef unsigned char uchar;
 
-class FileIOException : public exception {
-public:
-    const char* what() const _NOEXCEPT override {
-        return "Error while trying to read file or write to file";
-    }
-};
-
-class UnsupportedFormatException : public exception {
-public:
-    const char* what() const _NOEXCEPT override {
-        return "Unsupported format of PNM file";
-    }
-};
-
 class PNMPicture {
 public:
     PNMPicture();

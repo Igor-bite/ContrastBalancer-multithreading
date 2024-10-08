@@ -6,7 +6,6 @@
 #include <omp.h>
 
 using namespace std;
-namespace fs = filesystem;
 
 namespace constants {
     static string inputFileParam = "--input";
@@ -25,7 +24,7 @@ void printHelp() {
     output.append(constants::outputFileParam + " [fname] - output file for modified image\n");
     output.append(constants::coefParam + " [coef] - coefficient for ignoring not important colors\n");
     output.append(constants::ompOff + " | " + constants::ompThreads + " [num_threads | default] - multithreading options\n\n");
-    printf(output.c_str());
+    printf("%s", output.c_str());
 }
 
 int pseudoMain(int argc, char* argv[]) {

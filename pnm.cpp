@@ -15,7 +15,7 @@ PNMPicture::PNMPicture(const string& filename) {
 void PNMPicture::read(const string& fileName) {
     inputFile.open(fileName, ios::binary);
     if (!inputFile.is_open())
-        throw FileIOException();
+        throw runtime_error("Error while trying to open input file");
     read();
 }
 
@@ -23,7 +23,7 @@ void PNMPicture::read() {
     char P;
     inputFile >> P;
     if (P != 'P')
-        throw UnsupportedFormatException();
+        throw runtime_error("Unsupported format of PNM file");
 
     inputFile >> format;
     if (format == 5) {
@@ -31,7 +31,7 @@ void PNMPicture::read() {
     } else if (format == 6) {
         channelsCount = 3;
     } else {
-        throw UnsupportedFormatException();
+        throw runtime_error("Unsupported format of PNM file");
     }
     inputFile >> width >> height;
     inputFile >> colors;
@@ -52,13 +52,13 @@ void PNMPicture::read() {
     inputFile.read((char*) &data[0], dataSize);
 
     if (inputFile.fail())
-        throw FileIOException();
+        throw runtime_error("Error while trying to read file");
 }
 
 void PNMPicture::write(const string& fileName) {
     outputFile.open(fileName, ios::binary);
     if (!outputFile.is_open())
-        throw FileIOException();
+        throw runtime_error("Error while trying to open output file");
     write();
 }
 
@@ -69,7 +69,7 @@ void PNMPicture::write() {
     outputFile.write((char*) &data[0], width * height * channelsCount);
 
     if (outputFile.fail())
-        throw FileIOException();
+        throw runtime_error("Error while trying to write to file");
 }
 
 // 1) изначально при итерировании собираем кол-ва по каждому цвету
