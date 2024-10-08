@@ -7,6 +7,9 @@
 #include <cmath>
 #include <stdio.h>
 #include "time_monitor.h"
+#include <stdexcept>
+
+using namespace std;
 
 PNMPicture::PNMPicture() = default;
 PNMPicture::PNMPicture(const string& filename) {
