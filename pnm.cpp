@@ -17,8 +17,12 @@ PNMPicture::PNMPicture(const string& filename) {
 }
 
 PNMPicture::~PNMPicture() {
-    fclose(fin);
-    fclose(fout);
+    if (fin != nullptr) {
+        fclose(fin);
+    }
+    if (fout != nullptr) {
+        fclose(fout);
+    }
 };
 
 void PNMPicture::read(const string& fileName) {
@@ -36,6 +40,7 @@ void PNMPicture::read(const string& fileName) {
 
     read();
     fclose(fin);
+    fin = nullptr;
 }
 
 void PNMPicture::read() {
@@ -73,6 +78,7 @@ void PNMPicture::write(const string& fileName) {
 
     write();
     fclose(fout);
+    fout = nullptr;
 }
 
 void PNMPicture::write() {
