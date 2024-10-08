@@ -46,6 +46,7 @@ public:
     int format;
     int width, height;
     int colors;
+    short channelsCount;
     vector<uchar> data;
     bool is2ILPSupported = false;
     bool is3ILPSupported = false;

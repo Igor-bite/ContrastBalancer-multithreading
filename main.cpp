@@ -3,7 +3,6 @@
 #include "args_parser.h"
 #include "time_monitor.h"
 #include <map>
-#include <sys/stat.h>
 #include <omp.h>
 
 using namespace std;
@@ -29,18 +28,18 @@ void printHelp() {
     printf(output.c_str());
 }
 
-inline bool isFileExists(const std::string& name) {
-    struct stat buffer;
-    return (stat (name.c_str(), &buffer) == 0);
-}
-
 int pseudoMain(int argc, char* argv[]) {
     map<string, string> argsMap = {};
     parseArguments(argsMap, argc, argv);
 
-    if (argsMap[constants::helpFlag] == args_parser_constants::trueFlagValue) {
+    if (argsMap[constants::helpFlag] == args_parser_constants::trueFlagValue && argc == 2) {
         printHelp();
         return 0;
+    }
+
+    if (argc < 8 || argc > 9) {
+        fprintf(stderr, "Incorrect number of arguments, see help with --help");
+        return 1;
     }
 
     bool isOmpOff = argsMap[constants::ompOff] == args_parser_constants::trueFlagValue;
@@ -58,11 +57,6 @@ int pseudoMain(int argc, char* argv[]) {
 
     string inputFileName = argsMap[constants::inputFileParam];
     string outputFilename = argsMap[constants::outputFileParam];
-
-    if (!isFileExists(inputFileName)) {
-        fprintf(stderr, "No file with name %s\n", inputFileName.c_str());
-        return 1;
-    }
 
     PNMPicture picture;
     try {

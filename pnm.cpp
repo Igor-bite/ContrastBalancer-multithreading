@@ -21,17 +21,20 @@ void PNMPicture::read(string fileName) {
 }
 
 void PNMPicture::read(ifstream& inputFile) {
+    inputFile.seekg(0, inputFile.end);
+    auto wholeFile = inputFile.tellg();
+    inputFile.seekg(0, inputFile.beg);
+
     char P;
     inputFile >> P;
     if (P != 'P')
         throw UnsupportedFormatException();
 
     inputFile >> format;
-    short colorsCount;
     if (format == 5) {
-        colorsCount = 1;
+        channelsCount = 1;
     } else if (format == 6) {
-        colorsCount = 3;
+        channelsCount = 3;
     } else {
         throw UnsupportedFormatException();
     }
@@ -40,7 +43,7 @@ void PNMPicture::read(ifstream& inputFile) {
 
     if (width % 4 == 0 || height % 4 == 0 || (width % 2 == 0 && height % 2 == 0)) {
         is4ILPSupported = true;
-    } else if (colorsCount == 3 || height % 3 == 0 || width % 3 == 0) {
+    } else if (channelsCount == 3 || height % 3 == 0 || width % 3 == 0) {
         is3ILPSupported = true;
     } else if (height % 2 == 0 || width % 2 == 0) {
         is2ILPSupported = true;
@@ -48,8 +51,15 @@ void PNMPicture::read(ifstream& inputFile) {
 
     inputFile.get();
 
-    size_t dataSize = width * height * colorsCount;
+    size_t dataSize = width * height * channelsCount;
+
+    auto curPos = inputFile.tellg();
+    auto left = wholeFile - curPos;
+    if (left != dataSize)
+        throw runtime_error("error error error");
+
     data.resize(dataSize);
+
     inputFile.read((char*) &data[0], dataSize);
 
     if (inputFile.fail())
@@ -68,15 +78,10 @@ void PNMPicture::write(ofstream& outputFile) const {
     outputFile << "P" << format << '\n';
     outputFile << width << ' ' << height << '\n';
     outputFile << colors << '\n';
-    short colorsCount;
-    if (format == 5) {
-        colorsCount = 1;
-    } else if (format == 6) {
-        colorsCount = 3;
-    } else {
-        throw UnsupportedFormatException();
-    }
-    outputFile.write((char*) &data[0], width * height * colorsCount);
+    outputFile.write((char*) &data[0], width * height * channelsCount);
+
+    if (outputFile.fail())
+        throw FileIOException();
 }
 
 // 1) изначально при итерировании собираем кол-ва по каждому цвету
