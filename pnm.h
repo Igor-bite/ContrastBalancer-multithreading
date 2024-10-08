@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <fstream>
 #include <string>
 #include <vector>
 
@@ -19,6 +18,7 @@ class PNMPicture {
 public:
     PNMPicture();
     explicit PNMPicture(const string& fileName);
+    ~PNMPicture();
 
     void read(const string& fileName);
     void read();
@@ -33,8 +33,8 @@ public:
     int width, height;
     int colors;
     short channelsCount;
-    ifstream inputFile;
-    ofstream outputFile;
+    FILE *fin;
+    FILE *fout;
     vector<uchar> data;
     bool is2ILPSupported = false;
     bool is3ILPSupported = false;

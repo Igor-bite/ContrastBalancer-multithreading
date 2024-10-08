@@ -5,6 +5,7 @@
 #include "pnm.h"
 #include <omp.h>
 #include <cmath>
+#include <stdio.h>
 #include "time_monitor.h"
 
 PNMPicture::PNMPicture() = default;
@@ -12,20 +13,29 @@ PNMPicture::PNMPicture(const string& filename) {
     read(filename);
 }
 
+PNMPicture::~PNMPicture() {
+    fclose(fin);
+    fclose(fout);
+};
+
 void PNMPicture::read(const string& fileName) {
-    inputFile.open(fileName, ios::binary);
-    if (!inputFile.is_open())
+    fin = fopen(fileName.c_str(), "rb");
+    if (fin == nullptr) {
         throw runtime_error("Error while trying to open input file");
+    }
+
+    char p;
+    char binChar;
+    fscanf(fin, "%c%i%c%d %d%c%d%c", &p, &format, &binChar, &width, &height, &binChar, &colors, &binChar);
+
+    if (p != 'P')
+        throw runtime_error("Unsupported format input file");
+
     read();
+    fclose(fin);
 }
 
 void PNMPicture::read() {
-    char P;
-    inputFile >> P;
-    if (P != 'P')
-        throw runtime_error("Unsupported format of PNM file");
-
-    inputFile >> format;
     if (format == 5) {
         channelsCount = 1;
     } else if (format == 6) {
@@ -33,8 +43,6 @@ void PNMPicture::read() {
     } else {
         throw runtime_error("Unsupported format of PNM file");
     }
-    inputFile >> width >> height;
-    inputFile >> colors;
 
     if (width % 4 == 0 || height % 4 == 0 || (width % 2 == 0 && height % 2 == 0)) {
         is4ILPSupported = true;
@@ -44,32 +52,35 @@ void PNMPicture::read() {
         is2ILPSupported = true;
     }
 
-    inputFile.get();
-
     size_t dataSize = width * height * channelsCount;
     data.resize(dataSize);
 
-    inputFile.read((char*) &data[0], dataSize);
+    const size_t bytesRead = fread(data.data(), 1, dataSize, fin);
 
-    if (inputFile.fail())
+    if (bytesRead != dataSize) {
         throw runtime_error("Error while trying to read file");
+    }
 }
 
 void PNMPicture::write(const string& fileName) {
-    outputFile.open(fileName, ios::binary);
-    if (!outputFile.is_open())
+    fout = fopen(fileName.c_str(), "wb");
+    if (fout == nullptr) {
         throw runtime_error("Error while trying to open output file");
+    }
+
     write();
+    fclose(fout);
 }
 
 void PNMPicture::write() {
-    outputFile << "P" << format << '\n';
-    outputFile << width << ' ' << height << '\n';
-    outputFile << colors << '\n';
-    outputFile.write((char*) &data[0], width * height * channelsCount);
+    fprintf(fout, "P%d\n%d %d\n%d\n", format, width, height, colors);
 
-    if (outputFile.fail())
+    size_t dataSize = width * height * channelsCount;
+    const size_t writtenBytes = fwrite(data.data(), 1, dataSize, fout);
+
+    if (writtenBytes != dataSize) {
         throw runtime_error("Error while trying to write to file");
+    }
 }
 
 // 1) изначально при итерировании собираем кол-ва по каждому цвету
