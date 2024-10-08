@@ -17,7 +17,7 @@ namespace constants {
     static string ompOff = "--no-omp";
     static string ompThreads = "--omp-threads";
     static string ompThreadsDefaultValue = "default";
-};
+}
 
 void printHelp() {
     string output = "========= Help page =========\n";
