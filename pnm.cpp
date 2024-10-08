@@ -86,8 +86,6 @@ void PNMPicture::write(ofstream& outputFile) const {
 // 4) вычисляем min/max
 // 5) пробегаемся ещё раз и меняем значения
 // методы: omp + simd + ilp
-// TODO: если один цвет - ничего не делать
-
 
 void PNMPicture::modify(float coeff) noexcept {
     size_t size = data.size();
@@ -102,10 +100,11 @@ void PNMPicture::modify(float coeff) noexcept {
     uchar max_v = 0;
 
     analyzeData(elements);
-
     determineMinMax(ignoreCount, elements, min_v, max_v);
 
-    if (min_v == 0 && max_v == 255) {
+    // если уже растянуто - не делаем ничего
+    // или если например 1 цвет - не делаем ничего
+    if ((min_v == 0 && max_v == 255) || min_v >= max_v) {
         return;
     }
 
@@ -162,7 +161,9 @@ void PNMPicture::modifyParallel(float coeff, int threads_count) noexcept {
     analyzeDataParallel(elements, threads_count);
     determineMinMaxParallel(ignoreCount, elements, min_v, max_v, threads_count);
 
-    if (min_v == 0 && max_v == 255) {
+    // если уже растянуто - не делаем ничего
+    // или если например 1 цвет - не делаем ничего
+    if ((min_v == 0 && max_v == 255) || min_v >= max_v) {
         return;
     }
 
@@ -220,7 +221,7 @@ void PNMPicture::determineMinMax(
     int brightCount = 0;
     bool isBrightComplete = false;
 
-    for (size_t i = 0; i < 128; i++) {
+    for (size_t i = 0; i < 256; i++) {
         if (!isDarkComplete) {
             size_t darkIndex = i;
             int element = elements[darkIndex];
@@ -259,58 +260,46 @@ void PNMPicture::determineMinMaxParallel(
         uchar &max_v,
         int threads_count
 ) const noexcept {
-
     int darkCount = 0;
     bool isDarkComplete = false;
 
     int brightCount = 0;
     bool isBrightComplete = false;
 
-#pragma omp parallel firstprivate(darkCount, isDarkComplete, brightCount, isBrightComplete) shared(min_v, max_v) num_threads(max(threads_count, 2))
-    {
-        auto threadNum = omp_get_thread_num();
-
-        for (size_t i = 0; i < 128; i++) {
-            bool isDarkHandler = threadNum == 0;
-
-            if (isDarkHandler || threads_count == 1) {
-                if (!isDarkComplete) {
-                    size_t darkIndex = i;
-                    int element = 0;
-                    for (auto j = 0; j < threads_count; ++j) {
-                        element += elements[darkIndex + j * 256];
-                    }
-                    if (darkCount < ignoreCount) {
-                        darkCount += element;
-                    }
-
-                    if (darkCount >= ignoreCount && element != 0) {
-                        isDarkComplete = true;
-                        min_v = darkIndex;
-                    }
-                } else {
-                    break;
-                }
+    for (size_t i = 0; i < 256; i++) {
+        if (!isDarkComplete) {
+            size_t darkIndex = i;
+            int element = 0;
+            for (auto j = 0; j < threads_count; ++j) {
+                element += elements[darkIndex + j * 256];
             }
-            if (!isDarkHandler || threads_count == 1) {
-                if (!isBrightComplete) {
-                    size_t brightIndex = 255 - i;
-                    int element = 0;
-                    for (auto j = 0; j < threads_count; ++j) {
-                        element += elements[brightIndex + j * 256];
-                    }
-                    if (brightCount < ignoreCount) {
-                        brightCount += element;
-                    }
-
-                    if (brightCount >= ignoreCount && element != 0) {
-                        isBrightComplete = true;
-                        max_v = brightIndex;
-                    }
-                } else {
-                    break;
-                }
+            if (darkCount < ignoreCount) {
+                darkCount += element;
             }
+
+            if (darkCount >= ignoreCount && element != 0) {
+                isDarkComplete = true;
+                min_v = darkIndex;
+            }
+        }
+        if (!isBrightComplete) {
+            size_t brightIndex = 255 - i;
+            int element = 0;
+            for (auto j = 0; j < threads_count; ++j) {
+                element += elements[brightIndex + j * 256];
+            }
+            if (brightCount < ignoreCount) {
+                brightCount += element;
+            }
+
+            if (brightCount >= ignoreCount && element != 0) {
+                isBrightComplete = true;
+                max_v = brightIndex;
+            }
+        }
+
+        if (isDarkComplete && isBrightComplete) {
+            break;
         }
     }
 }
