@@ -40,7 +40,7 @@ void PNMPicture::read(ifstream& inputFile) {
 
     if (width % 4 == 0 || height % 4 == 0 || (width % 2 == 0 && height % 2 == 0)) {
         is4ILPSupported = true;
-    } else if (format == 6) {
+    } else if (colorsCount == 3 || height % 3 == 0 || width % 3 == 0) {
         is3ILPSupported = true;
     } else if (height % 2 == 0 || width % 2 == 0) {
         is2ILPSupported = true;
@@ -221,11 +221,7 @@ void PNMPicture::determineMinMax(
     int brightCount = 0;
     bool isBrightComplete = false;
 
-    auto threadNum = omp_get_thread_num();
-
     for (size_t i = 0; i < 128; i++) {
-        bool isDarkHandler = threadNum == 0;
-
         if (isDarkHandler) {
             if (!isDarkComplete) {
                 size_t darkIndex = i;
@@ -328,37 +324,27 @@ void PNMPicture::determineMinMaxParallel(
 void PNMPicture::analyzeData(vector<size_t> & elements) const noexcept {
     elements.resize(256, 0);
 
-    if (is2ILPSupported) {
-        for (size_t i = 0; i < data.size(); i += 2) {
-            int v1 = data[i];
-            int v2 = data[i+1];
-            elements[v1] += 1;
-            elements[v2] += 1;
+    if (is4ILPSupported) {
+        for (size_t i = 0; i < data.size(); i += 4) {
+            elements[data[i]] += 1;
+            elements[data[i+1]] += 1;
+            elements[data[i+2]] += 1;
+            elements[data[i+3]] += 1;
         }
     } else if (is3ILPSupported) {
         for (size_t i = 0; i < data.size(); i += 3) {
-            int v1 = data[i];
-            int v2 = data[i+1];
-            int v3 = data[i+2];
-            elements[v1] += 1;
-            elements[v2] += 1;
-            elements[v3] += 1;
+            elements[data[i]] += 1;
+            elements[data[i+1]] += 1;
+            elements[data[i+2]] += 1;
         }
-    } else if (is4ILPSupported) {
-        for (size_t i = 0; i < data.size(); i += 4) {
-            int v1 = data[i];
-            int v2 = data[i+1];
-            int v3 = data[i+2];
-            int v4 = data[i+3];
-            elements[v1] += 1;
-            elements[v2] += 1;
-            elements[v3] += 1;
-            elements[v4] += 1;
+    } else if (is2ILPSupported) {
+        for (size_t i = 0; i < data.size(); i += 2) {
+            elements[data[i]] += 1;
+            elements[data[i+1]] += 1;
         }
     } else {
         for (size_t i = 0; i < data.size(); i++) {
-            int v1 = data[i];
-            elements[v1] += 1;
+            elements[data[i]] += 1;
         }
     }
 }
@@ -368,6 +354,41 @@ void PNMPicture::analyzeDataParallel(
     int threads_count
 ) const noexcept {
     elements.resize(256 * threads_count, 0);
+
+    if (is4ILPSupported) {
+#pragma omp parallel default(shared) num_threads(threads_count)
+        {
+            int thread = omp_get_thread_num();
+#pragma omp for schedule(guided)
+            for (size_t i = 0; i < data.size(); i += 4) {
+                elements[data[i] + 256 * thread] += 1;
+                elements[data[i+1] + 256 * thread] += 1;
+                elements[data[i+2] + 256 * thread] += 1;
+                elements[data[i+3] + 256 * thread] += 1;
+            }
+        }
+    } else if (is3ILPSupported) {
+        int thread = omp_get_thread_num();
+#pragma omp for schedule(guided)
+        for (size_t i = 0; i < data.size(); i += 3) {
+            elements[data[i] + 256 * thread] += 1;
+            elements[data[i+1] + 256 * thread] += 1;
+            elements[data[i+2] + 256 * thread] += 1;
+        }
+    } else if (is2ILPSupported) {
+        int thread = omp_get_thread_num();
+#pragma omp for schedule(guided)
+        for (size_t i = 0; i < data.size(); i += 2) {
+            elements[data[i] + 256 * thread] += 1;
+            elements[data[i+1] + 256 * thread] += 1;
+        }
+    } else {
+        int thread = omp_get_thread_num();
+#pragma omp for schedule(guided)
+        for (size_t i = 0; i < data.size(); i++) {
+            elements[data[i] + 256 * thread] += 1;
+        }
+    }
 
     if (is2ILPSupported) {
 #pragma omp parallel default(shared) num_threads(threads_count)
