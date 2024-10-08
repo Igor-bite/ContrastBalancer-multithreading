@@ -8,23 +8,18 @@
 #include "time_monitor.h"
 
 PNMPicture::PNMPicture() = default;
-PNMPicture::PNMPicture(string filename) {
+PNMPicture::PNMPicture(const string& filename) {
     read(filename);
 }
 
-void PNMPicture::read(string fileName) {
-    ifstream inputFile(fileName, ios::binary);
+void PNMPicture::read(const string& fileName) {
+    inputFile.open(fileName, ios::binary);
     if (!inputFile.is_open())
         throw FileIOException();
-    read(inputFile);
-    inputFile.close();
+    read();
 }
 
-void PNMPicture::read(ifstream& inputFile) {
-    inputFile.seekg(0, inputFile.end);
-    auto wholeFile = inputFile.tellg();
-    inputFile.seekg(0, inputFile.beg);
-
+void PNMPicture::read() {
     char P;
     inputFile >> P;
     if (P != 'P')
@@ -52,12 +47,6 @@ void PNMPicture::read(ifstream& inputFile) {
     inputFile.get();
 
     size_t dataSize = width * height * channelsCount;
-
-    auto curPos = inputFile.tellg();
-    auto left = wholeFile - curPos;
-    if (left != dataSize)
-        throw runtime_error("error error error");
-
     data.resize(dataSize);
 
     inputFile.read((char*) &data[0], dataSize);
@@ -66,15 +55,14 @@ void PNMPicture::read(ifstream& inputFile) {
         throw FileIOException();
 }
 
-void PNMPicture::write(const string& fileName) const {
-    ofstream outputFile(fileName, ios::binary);
+void PNMPicture::write(const string& fileName) {
+    outputFile.open(fileName, ios::binary);
     if (!outputFile.is_open())
         throw FileIOException();
-    write(outputFile);
-    outputFile.close();
+    write();
 }
 
-void PNMPicture::write(ofstream& outputFile) const {
+void PNMPicture::write() {
     outputFile << "P" << format << '\n';
     outputFile << width << ' ' << height << '\n';
     outputFile << colors << '\n';
@@ -90,7 +78,7 @@ void PNMPicture::write(ofstream& outputFile) const {
 // и сохраняем первый попавшийся индекс с ненулевым значением как минимальный/максимальный цвет
 // 4) вычисляем min/max
 // 5) пробегаемся ещё раз и меняем значения
-// методы: omp + simd + ilp
+// доступные методы: omp + simd + ilp
 
 void PNMPicture::modify(float coeff) noexcept {
     size_t size = data.size();

@@ -32,13 +32,13 @@ public:
 class PNMPicture {
 public:
     PNMPicture();
-    explicit PNMPicture(string fileName);
+    explicit PNMPicture(const string& fileName);
 
-    void read(string fileName);
-    void read(ifstream& inputFile);
+    void read(const string& fileName);
+    void read();
 
-    void write(const string& fileName) const;
-    void write(ofstream& outputFile) const;
+    void write(const string& fileName) ;
+    void write();
 
     void modify(float coeff) noexcept;
     void modifyParallel(float coeff, int threads_count) noexcept;
@@ -47,6 +47,8 @@ public:
     int width, height;
     int colors;
     short channelsCount;
+    ifstream inputFile;
+    ofstream outputFile;
     vector<uchar> data;
     bool is2ILPSupported = false;
     bool is3ILPSupported = false;

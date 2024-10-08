@@ -61,11 +61,8 @@ int pseudoMain(int argc, char* argv[]) {
     PNMPicture picture;
     try {
         picture.read(inputFileName);
-    } catch (FileIOException&) {
-        fprintf(stderr, "Error while trying to read file %s\n", inputFileName.c_str());
-        return 1;
-    } catch (UnsupportedFormatException&) {
-        fprintf(stderr, "Error: unsupported format\n");
+    } catch (exception& e) {
+        fprintf(stderr, "%s\n", e.what());
         return 1;
     }
 
@@ -84,7 +81,13 @@ int pseudoMain(int argc, char* argv[]) {
         picture.modifyParallel(coeff, threads_count);
     }
     timeMonitor.stop();
-    picture.write(outputFilename);
+
+    try {
+        picture.write(outputFilename);
+    } catch (exception& e) {
+        fprintf(stderr, "%s", e.what());
+        return 1;
+    }
     return 0;
 }
 
