@@ -17,12 +17,14 @@ void TimeMonitor::start() {
     isActive = true;
 }
 
-void TimeMonitor::stop() {
+double TimeMonitor::stop() {
     double end_time = omp_get_wtime();
     double elapsedTime;
     if (isActive) {
         isActive = false;
         elapsedTime = (end_time - start_time) * 1000;
         printf("Time (%i threads): %lg\n", threadsNum, elapsedTime);
+        return elapsedTime;
     }
+    return 0;
 }

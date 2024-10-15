@@ -14,7 +14,7 @@ public:
     explicit TimeMonitor(int threadsNum, bool autoPrintOnStop);
 
     void start();
-    void stop();
+    double stop();
 
 private:
     double start_time;

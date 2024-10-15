@@ -2,3 +2,5 @@
 /cmake-build-release*
 /cmake-build-debug*
 Images/.DS_Store
+results.xlsx
+Images/test_results.csv

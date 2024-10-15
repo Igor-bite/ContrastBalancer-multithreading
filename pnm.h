@@ -32,13 +32,11 @@ public:
     int format;
     int width, height;
     int colors;
+    size_t data_size;
     short channelsCount;
     FILE *fin;
     FILE *fout;
     vector<uchar> data;
-    bool is2ILPSupported = false;
-    bool is3ILPSupported = false;
-    bool is4ILPSupported = false;
 
 private:
     void analyzeData(vector<size_t> &elements) const noexcept;
@@ -46,8 +44,6 @@ private:
 
     void determineMinMax(size_t ignoreCount, const vector<size_t> &elements, uchar &min_v,
                          uchar &max_v) const noexcept;
-    void determineMinMaxParallel(size_t ignoreCount, const vector<size_t> &elements, uchar &min_v,
-                         uchar &max_v, int threads_count) const noexcept;
 };
 
 
