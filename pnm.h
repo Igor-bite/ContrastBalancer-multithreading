@@ -26,9 +26,9 @@ public:
     void write(const string& fileName) ;
     void write();
 
-    void modify(float coeff) noexcept;
-    void modifyParallelOmp(float coeff, int threads_count) noexcept;
-    void modifyParallelCpp(float coeff, int threads_count, string schedule_kind, int chunk_size) noexcept;
+    void modify(const float coeff) noexcept;
+    void modifyParallelOmp(const float coeff, const int threads_count) noexcept;
+    void modifyParallelCpp(const float coeff, const int threads_count, const string schedule_kind, const int chunk_size) noexcept;
 
     int format;
     int width, height;
@@ -41,7 +41,8 @@ public:
 
 private:
     void analyzeData(vector<size_t> &elements) const noexcept;
-    void analyzeDataParallel(vector<size_t> &elements, int threads_count) const noexcept;
+    void analyzeDataParallelOmp(vector<size_t> &elements, const int threads_count) const noexcept;
+    void analyzeDataParallelCpp(vector<size_t> &elements, const int threads_count, const string schedule_kind, const int chunk_size) const noexcept;
 
     void determineMinMax(size_t ignoreCount, const vector<size_t> &elements, uchar &min_v,
                          uchar &max_v) const noexcept;
