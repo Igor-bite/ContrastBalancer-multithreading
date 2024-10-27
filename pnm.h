@@ -27,7 +27,7 @@ public:
     void write();
 
     void modify(float coeff) noexcept;
-    void modifyParallel(float coeff, int threads_count) noexcept;
+    void modifyParallel(float coeff, int threads_count, string schedule) noexcept;
 
     int format;
     int width, height;

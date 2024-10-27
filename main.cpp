@@ -4,7 +4,6 @@
 #include "time_monitor.h"
 #include <map>
 #include <omp.h>
-#include <iostream>
 #include "csv_writer.h"
 #include <cstdlib>
 
@@ -15,9 +14,9 @@ namespace constants {
     static string outputFileParam = "--output";
     static string helpFlag = "--help";
     static string coefParam = "--coef";
-    static string ompOff = "--no-omp";
-    static string ompThreads = "--omp-threads";
-    static string ompThreadsDefaultValue = "default";
+    static string threadsOff = "--no-cpp-threads";
+    static string cppThreads = "--cpp-threads";
+    static string cppThreadsDefaultValue = "default";
 }
 
 void printHelp() {
@@ -26,13 +25,13 @@ void printHelp() {
     output.append(constants::inputFileParam + " [fname] - input filename with pnm/ppm format\n");
     output.append(constants::outputFileParam + " [fname] - output file for modified image\n");
     output.append(constants::coefParam + " [coef] - coefficient for ignoring not important colors\n");
-    output.append(constants::ompOff + " | " + constants::ompThreads + " [num_threads | default] - multithreading options\n\n");
+    output.append(constants::threadsOff + " | " + constants::cppThreads + " [num_threads | default] - multithreading options\n\n");
     printf("%s", output.c_str());
 }
 
 auto csvWriter = CSVWriter("test_results.csv");
 
-int main2(
+int executeContrasting(
         string inputFileName,
         string outputFileName,
         float coeff,
@@ -66,7 +65,7 @@ int main2(
     if (isOmpOff) {
         picture.modify(coeff);
     } else {
-        picture.modifyParallel(coeff, threadsCount);
+        picture.modifyParallel(coeff, threadsCount, scheduleKind);
     }
     double elapsedTime = timeMonitor.stop();
 
@@ -95,11 +94,11 @@ int pseudoMain(int argc, char* argv[]) {
         return 1;
     }
 
-    bool isOmpOff = argsMap[constants::ompOff] == args_parser_constants::trueFlagValue;
+    bool isOmpOff = argsMap[constants::threadsOff] == args_parser_constants::trueFlagValue;
     int threads_count;
     if (!isOmpOff) {
-        string ompThreads = argsMap[constants::ompThreads];
-        if (ompThreads == constants::ompThreadsDefaultValue) {
+        string ompThreads = argsMap[constants::cppThreads];
+        if (ompThreads == constants::cppThreadsDefaultValue) {
             threads_count = omp_get_max_threads();
         } else {
             threads_count = stoi(ompThreads);
@@ -112,7 +111,7 @@ int pseudoMain(int argc, char* argv[]) {
     string outputFilename = argsMap[constants::outputFileParam];
     float coeff = stof(argsMap[constants::coefParam]);
 
-    return main2(inputFileName, outputFilename, coeff, isOmpOff, threads_count, "dynamic", "", "", 0);
+    return executeContrasting(inputFileName, outputFilename, coeff, isOmpOff, threads_count, "dynamic", "", "", 0);
 }
 
 int main(int argc, char* argv[]) {
@@ -146,10 +145,10 @@ int main(int argc, char* argv[]) {
                 }
                 for (auto ompOffFlag: isOmpOff) {
                     if (ompOffFlag) {
-                        main2(file, outputFile, coeff, ompOffFlag, 1, scheduleValue.c_str(), "", sk, -1);
+                        executeContrasting(file, outputFile, coeff, ompOffFlag, 1, scheduleValue.c_str(), "", sk, -1);
                     } else {
                         for (int threadCount = 1; threadCount <= threadsMaxCount; ++threadCount) {
-                            main2(file, outputFile, coeff, ompOffFlag, threadCount, scheduleValue.c_str(), "", sk, chunkSize);
+                            executeContrasting(file, outputFile, coeff, ompOffFlag, threadCount, scheduleValue.c_str(), "", sk, chunkSize);
                         }
                     }
                 }

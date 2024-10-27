@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include "time_monitor.h"
 #include <stdexcept>
+#include <thread>
 
 using namespace std;
 
@@ -120,7 +121,7 @@ void PNMPicture::modify(float coeff) noexcept {
     }
 }
 
-void PNMPicture::modifyParallel(float coeff, int threads_count) noexcept {
+void PNMPicture::modifyParallel(float coeff, int threads_count, string schedule) noexcept {
     if (data_size == 1) {
         return;
     }
