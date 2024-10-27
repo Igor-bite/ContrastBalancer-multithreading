@@ -27,7 +27,8 @@ public:
     void write();
 
     void modify(float coeff) noexcept;
-    void modifyParallel(float coeff, int threads_count, string schedule) noexcept;
+    void modifyParallelOmp(float coeff, int threads_count) noexcept;
+    void modifyParallelCpp(float coeff, int threads_count, string schedule_kind, int chunk_size) noexcept;
 
     int format;
     int width, height;

@@ -121,7 +121,7 @@ void PNMPicture::modify(float coeff) noexcept {
     }
 }
 
-void PNMPicture::modifyParallel(float coeff, int threads_count, string schedule) noexcept {
+void PNMPicture::modifyParallelOmp(float coeff, int threads_count) noexcept {
     if (data_size == 1) {
         return;
     }
@@ -148,6 +148,78 @@ void PNMPicture::modifyParallel(float coeff, int threads_count, string schedule)
     for (size_t i = 0; i < data_size; i++) {
         int scaledValue = int(scale * float(d[i]) - scaledMinV);
         d[i] = max(0, min(scaledValue, 255));
+    }
+}
+
+void PNMPicture::modifyParallelCpp(float coeff, int threads_count, string schedule_kind, int chunk_size) noexcept {
+    if (data_size == 1) {
+        return;
+    }
+
+    size_t ignoreCount = data_size * coeff;
+    vector<size_t> elements;
+    uchar min_v = 255;
+    uchar max_v = 0;
+
+    analyzeDataParallel(elements, threads_count);
+    determineMinMax(ignoreCount, elements, min_v, max_v);
+
+    // если уже растянуто - не делаем ничего
+    // или если например 1 цвет - не делаем ничего
+    if ((min_v == 0 && max_v == 255) || min_v >= max_v) {
+        return;
+    }
+
+    float const scale = 255 / float(max_v - min_v);
+    float scaledMinV = scale * float(min_v);
+
+    uchar* d = data.data();
+
+    vector<thread> threads;
+    threads.resize(threads_count);
+
+    if (schedule_kind == "static") {
+        if (chunk_size == 0) {
+            for (auto thread_index = 0; thread_index < threads_count; thread_index++) {
+                auto start = data_size * thread_index / threads_count;
+                auto end = data_size * (thread_index + 1) / threads_count;
+
+                threads[thread_index] = thread([start, end, scale, scaledMinV, &d]() {
+                    for (size_t i = start; i < end; i++) {
+                        int scaledValue = int(scale * float(d[i]) - scaledMinV);
+                        d[i] = max(0, min(scaledValue, 255));
+                    }
+                });
+            }
+        } else {
+            for (auto thread_index = 0; thread_index < threads_count; thread_index++) {
+                auto start = thread_index  * chunk_size;
+                auto end = data_size;
+                auto increment = (threads_count - 1) * chunk_size + 1;
+
+                threads[thread_index] = thread([chunk_size, start, end, increment, scale, scaledMinV, &d]() {
+                    size_t i = start;
+                    int cur_chunk = chunk_size;
+                    while (i < end) {
+                        int scaledValue = int(scale * float(d[i]) - scaledMinV);
+                        d[i] = max(0, min(scaledValue, 255));
+
+                        cur_chunk -= 1;
+
+                        if (cur_chunk > 0) {
+                            i += 1;
+                        } else if (cur_chunk == 0) {
+                            cur_chunk = chunk_size;
+                            i += increment;
+                        }
+                    }
+                });
+            }
+        }
+
+        for (auto i = 0; i < threads_count; i++) {
+            threads[i].join();
+        }
     }
 }
 
