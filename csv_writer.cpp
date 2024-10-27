@@ -7,7 +7,7 @@
 
 CSVWriter::CSVWriter(string fileName) {
     file.open(fileName);
-    file << "FILE;THREADS;OMP;SCHEDULE_KIND;CHUNK_SIZE;TIME" << endl;
+    file << "FILE;THREADS;SCHEDULE_KIND;CHUNK_SIZE;TIME" << endl;
 }
 
 void CSVWriter::write(
@@ -19,5 +19,5 @@ void CSVWriter::write(
     int chunkSize,
     double time
 ) {
-    file << inputFileName << ";" << threadsCount << ";" << (isOmpOff ? "FALSE" : "TRUE") << ";" << scheduleKind << ";" << (chunkSize == 0 ? to_string(-1) : to_string(chunkSize)) << ";" <<  time << endl;
+    file << inputFileName << ";" << threadsCount << ";" << (isOmpOff ? "no-omp" : scheduleKind) << ";" << (chunkSize == 0 ? to_string(-1) : to_string(chunkSize)) << ";" <<  time << endl;
 }

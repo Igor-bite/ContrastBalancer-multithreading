@@ -118,7 +118,7 @@ int pseudoMain(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
     return pseudoMain(argc, argv);
 
-    vector<string> files = { "4.ppm" };
+    vector<string> files = { "1.ppm" };
     vector<string> scheduleModifiers = {
         "monotonic",
         "nonmonotonic"
@@ -129,25 +129,15 @@ int main(int argc, char* argv[]) {
         "guided",
         "auto"
     };
-    int maxChunkSize = 10;
+    vector<int> chunkSizes = {1, 2 , 3, 4, 8, 16, 1024, 1024*2, 1024*4, 1024*8, 1024*16};
     string outputFile = "out.ppm";
-    int threadsMaxCount = omp_get_max_threads() * 2;
+    int threadsMaxCount = omp_get_max_threads();
     float coeff = 1 / 256;
     vector<bool> isOmpOff = { true, false };
 
-    /*
-    modifier is one of monotonic or nonmonotonic;
-    kind is one of static, dynamic, guided, or auto;
-    chunk is an optional positive integer that specifies the chunk size.
-
-    setenv OMP_SCHEDULE "guided,4"
-    setenv OMP_SCHEDULE "dynamic"
-    setenv OMP_SCHEDULE "nonmonotonic:dynamic,4"
-     */
-
     for (auto file : files) {
         for (auto sk : scheduleKinds) {
-            for (int chunkSize = 0; chunkSize <= maxChunkSize; ++chunkSize) {
+            for (int chunkSize : chunkSizes) {
                 string scheduleValue;
                 if (chunkSize == 0) {
                     scheduleValue = sk;
@@ -156,7 +146,7 @@ int main(int argc, char* argv[]) {
                 }
                 for (auto ompOffFlag: isOmpOff) {
                     if (ompOffFlag) {
-                        main2(file, outputFile, coeff, ompOffFlag, 1, scheduleValue.c_str(), "", sk, chunkSize);
+                        main2(file, outputFile, coeff, ompOffFlag, 1, scheduleValue.c_str(), "", sk, -1);
                     } else {
                         for (int threadCount = 1; threadCount <= threadsMaxCount; ++threadCount) {
                             main2(file, outputFile, coeff, ompOffFlag, threadCount, scheduleValue.c_str(), "", sk, chunkSize);
