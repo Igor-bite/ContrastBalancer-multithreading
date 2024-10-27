@@ -144,7 +144,7 @@ void PNMPicture::modifyParallelOmp(float coeff, int threads_count) noexcept {
     float scaledMinV = scale * float(min_v);
 
     uchar* d = data.data();
-#pragma omp parallel for schedule(runtime) num_threads(threads_count)
+#pragma omp parallel for schedule(dynamic, 1024*32) num_threads(threads_count)
     for (size_t i = 0; i < data_size; i++) {
         int scaledValue = int(scale * float(d[i]) - scaledMinV);
         d[i] = max(0, min(scaledValue, 255));
@@ -175,6 +175,7 @@ void PNMPicture::modifyParallelCpp(float coeff, int threads_count, string schedu
 
     uchar* d = data.data();
 
+    auto lock = mutex();
     vector<thread> threads;
     threads.resize(threads_count);
 
@@ -216,10 +217,48 @@ void PNMPicture::modifyParallelCpp(float coeff, int threads_count, string schedu
                 });
             }
         }
-
-        for (auto i = 0; i < threads_count; i++) {
-            threads[i].join();
+    } else if (schedule_kind == "dynamic") {
+        int cur_chunk_start = 0;
+        auto data_end = data_size;
+        int dynamic_chunk_size;
+        if (chunk_size == 0) {
+            dynamic_chunk_size = 1;
+        } else {
+            dynamic_chunk_size = chunk_size;
         }
+
+        for (int thread_index = 0; thread_index < threads_count; ++thread_index) {
+            threads[thread_index] = thread([&d, data_end, &lock, &cur_chunk_start, dynamic_chunk_size, scale, scaledMinV]() {
+
+                lock.lock();
+                int i = cur_chunk_start;
+                cur_chunk_start += dynamic_chunk_size;
+                lock.unlock();
+
+                int end = i + dynamic_chunk_size;
+
+                while (i < data_end) {
+                    int scaledValue = int(scale * float(d[i]) - scaledMinV);
+                    d[i] = max(0, min(scaledValue, 255));
+                    i++;
+
+                    if (i == end) {
+                        lock.lock();
+                        i = cur_chunk_start;
+                        cur_chunk_start += dynamic_chunk_size;
+                        lock.unlock();
+                        end = i + dynamic_chunk_size;
+                    }
+                }
+            });
+        }
+    } else {
+        printf("Unsupported schedule type");
+        return;
+    }
+
+    for (int thread_index = 0; thread_index < threads_count; ++thread_index) {
+        threads[thread_index].join();
     }
 }
 

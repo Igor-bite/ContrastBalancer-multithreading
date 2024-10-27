@@ -68,6 +68,10 @@ int executeContrasting(
     } else if (isOmpOn) {
         picture.modifyParallelOmp(coeff, threadsCount);
     } else {
+        if (scheduleKind != "static" && scheduleKind != "dynamic") {
+            printf("Unsupported schedule type. Supported: static/dynamic");
+            return 100;
+        }
         picture.modifyParallelCpp(coeff, threadsCount, scheduleKind, chunkSize);
     }
     double elapsedTime = timeMonitor.stop();
@@ -120,8 +124,8 @@ int pseudoMain(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
 //    return pseudoMain(argc, argv);
 
-    string schedule_kind = "static";
-    int chunk_size = 5;
+    string schedule_kind = "dynamic";
+    int chunk_size = 1024*32;
 
     string schedule;
     if (chunk_size == 0) {
