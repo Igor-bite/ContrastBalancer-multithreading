@@ -63,7 +63,7 @@ int executeContrasting(
 
     auto timeMonitor = TimeMonitor(threadsCount, true);
     timeMonitor.start();
-    if (isThreadsOff) {
+    if (isThreadsOff || threadsCount == 0) {
         picture.modify(coeff);
     } else if (isOmpOn) {
         picture.modifyParallelOmp(coeff, threadsCount);
