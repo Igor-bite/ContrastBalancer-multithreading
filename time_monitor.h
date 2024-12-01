@@ -6,6 +6,7 @@
 #define TESTPROJECT_TIME_MONITOR_H
 
 #include <string>
+#include <chrono>
 
 using namespace std;
 
@@ -17,7 +18,7 @@ public:
     double stop();
 
 private:
-    double start_time;
+    chrono::steady_clock::time_point start_time;
     bool isActive = false;
     bool autoPrintOnStop;
     int threadsNum;

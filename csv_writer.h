@@ -17,7 +17,8 @@ public:
     void write(
         string inputFileName,
         int threadsCount,
-        bool isOmpOff,
+        bool isCppOff,
+        bool isOmp,
         string scheduleModifier,
         string scheduleKind,
         int chunkSize,

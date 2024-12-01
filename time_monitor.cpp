@@ -3,7 +3,7 @@
 //
 
 #include "time_monitor.h"
-#include <omp.h>
+#include <chrono>
 
 using namespace std;
 
@@ -13,16 +13,16 @@ TimeMonitor::TimeMonitor(int threadsNum, bool autoPrintOnStop) {
 }
 
 void TimeMonitor::start() {
-    start_time = omp_get_wtime();
+    start_time = chrono::steady_clock::now();
     isActive = true;
 }
 
 double TimeMonitor::stop() {
-    double end_time = omp_get_wtime();
+    chrono::steady_clock::time_point end_time = chrono::steady_clock::now();
     double elapsedTime;
     if (isActive) {
         isActive = false;
-        elapsedTime = (end_time - start_time) * 1000;
+        elapsedTime = double(chrono::duration_cast<chrono::microseconds>(end_time - start_time).count()) / 1000;
         printf("Time (%i threads): %lg\n", threadsNum, elapsedTime);
         return elapsedTime;
     }
