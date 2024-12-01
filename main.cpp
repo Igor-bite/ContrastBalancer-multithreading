@@ -51,20 +51,8 @@ int executeContrasting(
         string inputFileName,
         string outputFileName,
         float coeff,
-        bool isThreadsOff,
-        int threadsCount,
-        const char *schedule,
-        string scheduleModifier,
-        string scheduleKind,
-        int chunkSize,
-        bool isOmpOn,
-        bool isCUDAOn
+        int deviceIndex
 ) {
-    if (!string(schedule).empty()) {
-        bool flag;
-        setenv("OMP_SCHEDULE", schedule, flag);
-    }
-
     PNMPicture picture;
     try {
         picture.read(inputFileName);
@@ -78,24 +66,9 @@ int executeContrasting(
         return 1;
     }
 
-    auto timeMonitor = TimeMonitor(threadsCount, true);
-    timeMonitor.start();
-    if (isThreadsOff || threadsCount == 1) {
-        picture.modify(coeff);
-    } else if (isCUDAOn) {
-        picture.modifyParallelCUDA(coeff, threadsCount);
-    } else if (isOmpOn) {
-        picture.modifyParallelOmp(coeff, threadsCount);
-    } else {
-        if (scheduleKind != "static" && scheduleKind != "dynamic") {
-            printf("Unsupported schedule type. Supported: static/dynamic");
-            return 100;
-        }
-        picture.modifyParallelCpp(coeff, threadsCount, scheduleKind, chunkSize);
-    }
-    double elapsedTime = timeMonitor.stop();
+    picture.modifyParallelCUDA(coeff, deviceIndex);
 
-    csvWriter.write(inputFileName, threadsCount, isThreadsOff, isOmpOn, scheduleModifier, scheduleKind, chunkSize, elapsedTime);
+//    csvWriter.write(inputFileName, threadsCount, isThreadsOff, isOmpOn, scheduleModifier, scheduleKind, chunkSize, elapsedTime);
 
     try {
         picture.write(outputFileName);
@@ -106,81 +79,86 @@ int executeContrasting(
     return 0;
 }
 
-int pseudoMain(int argc, char* argv[]) {
-    map<string, string> argsMap = {};
-    parseArguments(argsMap, argc, argv);
-
-    if (argsMap[constants::helpFlag] == args_parser_constants::trueFlagValue && argc == 2) {
-        printHelp();
-        return 0;
-    }
-
-    if (argc < 8 || argc > 9) {
-        fprintf(stderr, "Incorrect number of arguments, see help with --help");
-        return 1;
-    }
-
-    string inputFileName = argsMap[constants::inputFileParam];
-    string outputFilename = argsMap[constants::outputFileParam];
-    int deviceIndex = stoi(argsMap[constants::deviceIndex]);
-
-    return executeContrasting(inputFileName, outputFilename, coeff, isThreadsOff, threads_count, "dynamic", "", "dynamic", 1024 * 32, false, false);
-}
+//int pseudoMain(int argc, char* argv[]) {
+//    map<string, string> argsMap = {};
+//    parseArguments(argsMap, argc, argv);
+//
+//    if (argsMap[constants::helpFlag] == args_parser_constants::trueFlagValue && argc == 2) {
+//        printHelp();
+//        return 0;
+//    }
+//
+//    if (argc < 8 || argc > 9) {
+//        fprintf(stderr, "Incorrect number of arguments, see help with --help");
+//        return 1;
+//    }
+//
+//    string inputFileName = argsMap[constants::inputFileParam];
+//    string outputFilename = argsMap[constants::outputFileParam];
+//    int deviceIndex = stoi(argsMap[constants::deviceIndex]);
+//
+//    return executeContrasting(inputFileName, outputFilename, coeff, isThreadsOff, threads_count, "dynamic", "", "dynamic", 1024 * 32, false, false);
+//}
 
 int main(int argc, char* argv[]) {
+    fprintf(stdout, "Starting");
+    auto result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0);
+    fprintf(stdout, "Ending");
+    return result;
+
 //    return pseudoMain(argc, argv);
 
-    string schedule_kind = "dynamic";
-    int chunk_size = 1024*32;
+//    string schedule_kind = "dynamic";
+//    int chunk_size = 1024*32;
+//
+//    string schedule;
+//    if (chunk_size == 0) {
+//        schedule = schedule_kind;
+//    } else {
+//        schedule = schedule_kind + "," + to_string(chunk_size);
+//    }
+//
+//    printf("OMP: ");
+//    executeContrasting("in.ppm", "out.ppm", 0.00390625, false, omp_get_max_threads(), schedule.c_str(), "", schedule_kind, chunk_size, false, true);
+//    printf("CPP: ");
+//    executeContrasting("in.ppm", "out.ppm", 0.00390625, false, omp_get_max_threads(), schedule.c_str(), "", schedule_kind, chunk_size, false, true);
+//    printf("CUDA: ");
+//    return executeContrasting("in.ppm", "out.ppm", 0.00390625, 0);
 
-    string schedule;
-    if (chunk_size == 0) {
-        schedule = schedule_kind;
-    } else {
-        schedule = schedule_kind + "," + to_string(chunk_size);
-    }
-
-    printf("OMP: ");
-    executeContrasting("in.ppm", "out.ppm", 0.00390625, false, omp_get_max_threads(), schedule.c_str(), "", schedule_kind, chunk_size, false, true);
-    printf("CPP: ");
-    executeContrasting("in.ppm", "out.ppm", 0.00390625, false, omp_get_max_threads(), schedule.c_str(), "", schedule_kind, chunk_size, false, true);
-    printf("CUDA: ");
-    return executeContrasting("in.ppm", "out.ppm", 0.00390625, false, omp_get_max_threads(), schedule.c_str(), "", schedule_kind, chunk_size, false, true);
-
-    vector<string> files = { "1.ppm" };
-    vector<string> scheduleKinds = {
-        "static",
-        "dynamic"
-    };
-    vector<int> chunkSizes = {1024, 1024*2, 1024*4, 1024*8, 1024*16};
-    string outputFile = "out.ppm";
-    vector<int> threads = {1, 2, 5, 8, 9, 10};
-    float coeff = 1 / 256;
-    vector<bool> isOmpOff = { true, false };
-
-    for (auto file : files) {
-        for (auto sk : scheduleKinds) {
-            for (int chunkSize : chunkSizes) {
-                string scheduleValue;
-                if (chunkSize == 0) {
-                    scheduleValue = sk;
-                } else {
-                    scheduleValue = sk + "," + to_string(chunkSize);
-                }
-                for (auto ompOffFlag: isOmpOff) {
-                    for (auto isThreadsOff: isOmpOff) {
-                        if (isThreadsOff) {
-                            executeContrasting(file, outputFile, coeff, isThreadsOff, 1, scheduleValue.c_str(), "", sk,
-                                               -1, !ompOffFlag, false);
-                        } else {
-                            for (int threadCount : threads) {
-                                executeContrasting(file, outputFile, coeff, isThreadsOff, threadCount,
-                                                   scheduleValue.c_str(), "", sk, chunkSize, !ompOffFlag, false);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+//    vector<string> files = { "1.ppm" };
+//    vector<string> scheduleKinds = {
+//        "static",
+//        "dynamic"
+//    };
+//    vector<int> chunkSizes = {1024, 1024*2, 1024*4, 1024*8, 1024*16};
+//    string outputFile = "out.ppm";
+//    vector<int> threads = {1, 2, 5, 8, 9, 10};
+//    float coeff = 1 / 256;
+//    vector<bool> isOmpOff = { true, false };
+//
+//    for (auto file : files) {
+//        for (auto sk : scheduleKinds) {
+//            for (int chunkSize : chunkSizes) {
+//                string scheduleValue;
+//                if (chunkSize == 0) {
+//                    scheduleValue = sk;
+//                } else {
+//                    scheduleValue = sk + "," + to_string(chunkSize);
+//                }
+//                for (auto ompOffFlag: isOmpOff) {
+//                    for (auto isThreadsOff: isOmpOff) {
+//                        if (isThreadsOff) {
+//                            executeContrasting(file, outputFile, coeff, isThreadsOff, 1, scheduleValue.c_str(), "", sk,
+//                                               -1, !ompOffFlag, false);
+//                        } else {
+//                            for (int threadCount : threads) {
+//                                executeContrasting(file, outputFile, coeff, isThreadsOff, threadCount,
+//                                                   scheduleValue.c_str(), "", sk, chunkSize, !ompOffFlag, false);
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
 }

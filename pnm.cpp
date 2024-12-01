@@ -122,10 +122,6 @@ void PNMPicture::modify(const float coeff) noexcept {
 }
 
 void PNMPicture::modifyParallelCUDA(const float coeff, const int threads_count) noexcept {
-#ifdef USING_CUDA
-#elifdef USING_HIP
-#endif
-
     if (data_size == 1) {
         return;
     }

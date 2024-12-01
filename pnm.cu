@@ -3,22 +3,11 @@
 //
 
 #include "pnm.h"
-#include <omp.h>
 #include <cmath>
 #include <stdio.h>
-#include "time_monitor.h"
 #include <stdexcept>
-#include <thread>
-#include <mutex>
-#if __APPLE__
-#else
-#ifdef USING_CUDA
 #include <cuda_runtime.h>
 #include <cuda.h>
-#endif
-#ifdef USING_HIP
-#endif
-#endif
 
 using namespace std;
 
@@ -34,7 +23,7 @@ PNMPicture::~PNMPicture() {
     if (fout != nullptr) {
         fclose(fout);
     }
-};
+}
 
 void PNMPicture::read(const string& fileName) {
     fin = fopen(fileName.c_str(), "rb");
@@ -102,7 +91,7 @@ void PNMPicture::write() {
 // 5) пробегаемся ещё раз и меняем значения
 // доступные методы: omp + simd + ilp
 
-void PNMPicture::modifyParallelCUDA(const float coeff, const int threads_count) noexcept {
+void PNMPicture::modifyParallelCUDA(const float coeff, const int device_index) noexcept {
     if (data_size == 1) {
         return;
     }
@@ -112,7 +101,7 @@ void PNMPicture::modifyParallelCUDA(const float coeff, const int threads_count) 
     uchar min_v = 255;
     uchar max_v = 0;
 
-    analyzeDataParallelCUDA(elements, threads_count);
+    analyzeData(elements);
     determineMinMax(ignoreCount, elements, min_v, max_v);
 
     // если уже растянуто - не делаем ничего
@@ -125,10 +114,9 @@ void PNMPicture::modifyParallelCUDA(const float coeff, const int threads_count) 
     float scaledMinV = scale * float(min_v);
 
     uchar* d = data.data();
-#pragma omp parallel for schedule(runtime) num_threads(threads_count)
     for (size_t i = 0; i < data_size; i++) {
-        int scaledValue = int(scale * float(d[i]) - scaledMinV);
-        d[i] = max(0, min(scaledValue, 255));
+        int scaledValue1 = scale * d[i] - scaledMinV;
+        d[i] = max(0, min(scaledValue1, 255));
     }
 }
 
@@ -190,28 +178,12 @@ void PNMPicture::determineMinMax(
 }
 
 void PNMPicture::analyzeDataParallelCUDA(
-    vector<size_t> &elements,
-    const int threads_count
+    vector<size_t> &elements
 ) const noexcept {
     elements.resize(256, 0);
-    size_t* result = elements.data();
 
     const uchar* d = data.data();
-
-#pragma omp parallel num_threads(threads_count)
-    {
-        size_t els[256] = {0};
-
-#pragma omp for schedule(runtime)
-        for (size_t i = 0; i < data_size; i++) {
-            els[d[i]] += 1;
-        }
-
-#pragma omp critical
-        {
-            for (auto i = 0; i < 256; i++) {
-                result[i] += els[i];
-            }
-        }
+    for (size_t i = 0; i < data_size; i++) {
+        elements[d[i]] += 1;
     }
 }
