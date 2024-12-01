@@ -8,6 +8,20 @@
 #include <cstdlib>
 #include <thread>
 
+//#ifdef USING_CUDA
+//#elifdef USING_HIP
+//#endif
+//
+//#if __APPLE__
+//#else
+//#ifdef USING_CUDA
+//#include <cuda_runtime.h>
+//#include <cuda.h>
+//#endif
+//#ifdef USING_HIP
+//#endif
+//#endif
+
 using namespace std;
 
 namespace constants {
@@ -18,6 +32,7 @@ namespace constants {
     static string threadsOff = "--no-cpp-threads";
     static string cppThreads = "--cpp-threads";
     static string cppThreadsDefaultValue = "default";
+    static string deviceIndex = "device_index";
 }
 
 void printHelp() {
@@ -105,22 +120,9 @@ int pseudoMain(int argc, char* argv[]) {
         return 1;
     }
 
-    bool isThreadsOff = argsMap[constants::threadsOff] == args_parser_constants::trueFlagValue;
-    int threads_count;
-    if (!isThreadsOff) {
-        string ompThreads = argsMap[constants::cppThreads];
-        if (ompThreads == constants::cppThreadsDefaultValue) {
-            threads_count = int(thread::hardware_concurrency());
-        } else {
-            threads_count = stoi(ompThreads);
-        }
-    } else {
-        threads_count = 1;
-    }
-
     string inputFileName = argsMap[constants::inputFileParam];
     string outputFilename = argsMap[constants::outputFileParam];
-    float coeff = stof(argsMap[constants::coefParam]);
+    int deviceIndex = stoi(argsMap[constants::deviceIndex]);
 
     return executeContrasting(inputFileName, outputFilename, coeff, isThreadsOff, threads_count, "dynamic", "", "dynamic", 1024 * 32, false, false);
 }

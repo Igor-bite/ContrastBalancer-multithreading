@@ -19,4 +19,6 @@ add_executable(ContrastBalancer main.cpp
         time_monitor.h
         csv_writer.cpp
         csv_writer.h
+        pnm.cu
+        pnm.hip
 )
