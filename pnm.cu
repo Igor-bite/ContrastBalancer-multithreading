@@ -101,7 +101,7 @@ void PNMPicture::modifyParallelCUDA(const float coeff, const int device_index) n
     uchar min_v = 255;
     uchar max_v = 0;
 
-    analyzeData(elements);
+    analyzeDataParallelCUDA(elements);
     determineMinMax(ignoreCount, elements, min_v, max_v);
 
     // если уже растянуто - не делаем ничего
