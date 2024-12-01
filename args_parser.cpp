@@ -14,7 +14,7 @@ void parseArguments(map<string, string>& argsMap, int argc, char* argv[]) {
         string nextArg;
         if (i + 1 < argc) {
             nextArg = string(argv[i + 1]);
-            isCurParamFlag = nextArg.starts_with("-");
+            isCurParamFlag = nextArg.c_str()[0] == '-';
         } else {
             isCurParamFlag = true;
         }
