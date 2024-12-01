@@ -27,6 +27,7 @@ public:
     void write();
 
     void modify(const float coeff) noexcept;
+    void modifyParallelCUDA(const float coeff, const int threads_count) noexcept;
     void modifyParallelOmp(const float coeff, const int threads_count) noexcept;
     void modifyParallelCpp(const float coeff, const int threads_count, const string schedule_kind, const int chunk_size) noexcept;
 
@@ -41,6 +42,7 @@ public:
 
 private:
     void analyzeData(vector<size_t> &elements) const noexcept;
+    void analyzeDataParallelCUDA(vector<size_t> &elements, const int threads_count) const noexcept;
     void analyzeDataParallelOmp(vector<size_t> &elements, const int threads_count) const noexcept;
     void analyzeDataParallelCpp(vector<size_t> &elements, const int threads_count, const string schedule_kind, const int chunk_size) const noexcept;
 

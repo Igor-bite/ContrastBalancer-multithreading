@@ -122,6 +122,36 @@ void PNMPicture::modify(const float coeff) noexcept {
     }
 }
 
+void PNMPicture::modifyParallelCUDA(const float coeff, const int threads_count) noexcept {
+    if (data_size == 1) {
+        return;
+    }
+
+    size_t ignoreCount = data_size * coeff;
+    vector<size_t> elements;
+    uchar min_v = 255;
+    uchar max_v = 0;
+
+    analyzeDataParallelCUDA(elements, threads_count);
+    determineMinMax(ignoreCount, elements, min_v, max_v);
+
+    // если уже растянуто - не делаем ничего
+    // или если например 1 цвет - не делаем ничего
+    if ((min_v == 0 && max_v == 255) || min_v >= max_v) {
+        return;
+    }
+
+    float const scale = 255 / float(max_v - min_v);
+    float scaledMinV = scale * float(min_v);
+
+    uchar* d = data.data();
+#pragma omp parallel for schedule(runtime) num_threads(threads_count)
+    for (size_t i = 0; i < data_size; i++) {
+        int scaledValue = int(scale * float(d[i]) - scaledMinV);
+        d[i] = max(0, min(scaledValue, 255));
+    }
+}
+
 void PNMPicture::modifyParallelOmp(const float coeff, const int threads_count) noexcept {
     if (data_size == 1) {
         return;
@@ -331,6 +361,33 @@ void PNMPicture::analyzeData(vector<size_t> & elements) const noexcept {
     const uchar* d = data.data();
     for (size_t i = 0; i < data_size; i++) {
         elements[d[i]] += 1;
+    }
+}
+
+void PNMPicture::analyzeDataParallelCUDA(
+    vector<size_t> &elements,
+    const int threads_count
+) const noexcept {
+    elements.resize(256, 0);
+    size_t* result = elements.data();
+
+    const uchar* d = data.data();
+
+#pragma omp parallel num_threads(threads_count)
+    {
+        size_t els[256] = {0};
+
+#pragma omp for schedule(runtime)
+        for (size_t i = 0; i < data_size; i++) {
+            els[d[i]] += 1;
+        }
+
+#pragma omp critical
+        {
+            for (auto i = 0; i < 256; i++) {
+                result[i] += els[i];
+            }
+        }
     }
 }
 
