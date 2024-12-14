@@ -26,7 +26,8 @@ public:
     void write(const string& fileName) ;
     void write();
 
-    void modifyParallelCUDA(const float coeff, const int device_index) noexcept;
+    void modify(const float coeff) noexcept;
+    void modifyOpenCL(const float coeff, const int device_index, const string device_type) noexcept;
 
     int format;
     int width, height;
@@ -38,10 +39,10 @@ public:
     vector<uchar> data;
 
 private:
-    void analyzeDataParallelCUDA(vector<size_t> &elements) const noexcept;
+    void analyzeData(vector<size_t> &elements) const noexcept;
+    void analyzeDataOpenCL(vector<size_t> &elements) const noexcept;
 
-    void determineMinMax(size_t ignoreCount, const vector<size_t> &elements, uchar &min_v,
-                         uchar &max_v) const noexcept;
+    void determineMinMax(size_t ignoreCount, const vector<size_t> &elements, uchar &min_v, uchar &max_v) const noexcept;
 };
 
 

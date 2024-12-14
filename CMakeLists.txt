@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.29)
+cmake_minimum_required(VERSION 3.20)
 project(TestProject)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -19,6 +19,4 @@ add_executable(ContrastBalancer main.cpp
         time_monitor.h
         csv_writer.cpp
         csv_writer.h
-        pnm.cu
-        pnm.hip
 )
