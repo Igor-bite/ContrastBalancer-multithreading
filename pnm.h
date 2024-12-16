@@ -9,6 +9,11 @@
 
 #include <string>
 #include <vector>
+#ifdef __APPLE__
+#include <OpenCL/opencl.h>
+#else
+#include <CL/cl.h>
+#endif
 
 using namespace std;
 
@@ -37,10 +42,27 @@ public:
     FILE *fin;
     FILE *fout;
     vector<uchar> data;
+    int max_parallel_computing;
 
 private:
     void analyzeData(vector<size_t> &elements) const noexcept;
-    void analyzeDataOpenCL(vector<size_t> &elements) const noexcept;
+    double analyzeDataOpenCL(
+        vector<size_t> &elements,
+        cl_mem device_data,
+        cl_program program,
+        cl_device_id device,
+        cl_context context,
+        cl_command_queue queue
+    ) const noexcept;
+    double scaleImageData(
+        cl_mem device_data,
+        cl_device_id device,
+        cl_program program,
+        cl_context context,
+        cl_command_queue queue,
+        cl_float scale,
+        cl_float scaledMinV
+    ) noexcept;
 
     void determineMinMax(size_t ignoreCount, const vector<size_t> &elements, uchar &min_v, uchar &max_v) const noexcept;
 };

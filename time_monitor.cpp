@@ -7,8 +7,7 @@
 
 using namespace std;
 
-TimeMonitor::TimeMonitor(int threadsNum, bool autoPrintOnStop) {
-    this->threadsNum = threadsNum;
+TimeMonitor::TimeMonitor(bool autoPrintOnStop) {
     this->autoPrintOnStop = autoPrintOnStop;
 }
 
@@ -23,7 +22,9 @@ double TimeMonitor::stop() {
     if (isActive) {
         isActive = false;
         elapsedTime = double(chrono::duration_cast<chrono::microseconds>(end_time - start_time).count()) / 1000;
-        printf("Time (%i threads): %lg\n", threadsNum, elapsedTime);
+        if (autoPrintOnStop) {
+            printf("Time: %lg\n", elapsedTime);
+        }
         return elapsedTime;
     }
     return 0;

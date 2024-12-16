@@ -12,7 +12,7 @@ using namespace std;
 
 class TimeMonitor {
 public:
-    explicit TimeMonitor(int threadsNum, bool autoPrintOnStop);
+    explicit TimeMonitor(bool autoPrintOnStop);
 
     void start();
     double stop();
@@ -21,7 +21,6 @@ private:
     chrono::steady_clock::time_point start_time;
     bool isActive = false;
     bool autoPrintOnStop;
-    int threadsNum;
 };
 
 #endif //TESTPROJECT_TIME_MONITOR_H

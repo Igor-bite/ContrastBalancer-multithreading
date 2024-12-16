@@ -1,6 +1,8 @@
 #include <string>
 #include <map>
+#include <iostream>
 #include "pnm.h"
+#include "time_monitor.h"
 #include "args_parser.h"
 using namespace std;
 
@@ -88,7 +90,12 @@ int main(int argc, char* argv[]) {
 //    return pseudoMain(argc, argv);
 
     fprintf(stdout, "Starting\n");
-    auto result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "all", true);
+    int result;
+    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "dgpu", false);
+    cout << endl << endl;
+    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "dgpu", true);
+    // gpu - 15.062
+    // cpu - 2052.41
     fprintf(stdout, "Ending\n");
     return result;
 }
