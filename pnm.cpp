@@ -386,7 +386,7 @@ void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const s
     auto max_mem = getDeviceInfoULong(device, CL_DEVICE_MAX_MEM_ALLOC_SIZE);
     cout << "CL_DEVICE_MAX_MEM_ALLOC_SIZE = " << max_mem << endl;
     auto max_parallel = compute_units_count * max_group_size;
-    max_parallel_computing = max_parallel;
+    max_parallel_computing = max_parallel / 4;
     cout << "MAX = " << compute_units_count * max_group_size << endl;
 
     cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, NULL);
@@ -542,6 +542,10 @@ double PNMPicture::analyzeDataOpenCL(
  scale_elapsed = 7.648
 
  * gpu 2
+ analyze = 485.442
+ determine_min_max_elapsed = 0.002
+ scale_elapsed = 13.5083
+ Time: 498.952 ms
 
  *
  */
