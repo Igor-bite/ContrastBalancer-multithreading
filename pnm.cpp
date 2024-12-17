@@ -10,6 +10,9 @@
 #include <stdio.h>
 #include <stdexcept>
 #include <iostream>
+#ifnotdef __APPLE__
+#include <algoriphm>
+#endif
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
