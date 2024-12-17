@@ -5,7 +5,7 @@ kernel void makeGist(global const uchar *data, global size_t *gist, const int ch
     uint data_to = (global_id + 1) * chunk_size;
     uint offset = 256 * global_id;
     for (uint i = data_from; i < data_to; i++) {
-        size_t index = (data[i] + offset) * 2;
+        size_t index = (data[i] + offset);
         gist[index] += 1;
     }
 }

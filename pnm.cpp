@@ -9,8 +9,7 @@
 #include <cmath>
 #include <stdio.h>
 #include <stdexcept>
-#include <iostream>
-#ifnotdef __APPLE__
+#ifndef __APPLE__
 #include <algoriphm>
 #endif
 
@@ -140,9 +139,9 @@ void PNMPicture::modify(const float coeff) noexcept {
     }
     auto scale_elapsed = tm.stop();
 
-    cout << "analyze = " << analyze_elapsed << endl;
-    cout << "determine_min_max_elapsed = " << determine_min_max_elapsed << endl;
-    cout << "scale_elapsed = " << scale_elapsed << endl;
+//    cout << "analyze = " << analyze_elapsed << endl;
+//    cout << "determine_min_max_elapsed = " << determine_min_max_elapsed << endl;
+//    cout << "scale_elapsed = " << scale_elapsed << endl;
 }
 
 void PNMPicture::analyzeData(vector<size_t> & elements) const noexcept {
@@ -362,7 +361,7 @@ void printBuildLog(cl_device_id selectedDevice, cl_program program) {
     clGetProgramBuildInfo(program, selectedDevice, CL_PROGRAM_BUILD_LOG, log_size, build_log_data.data(), NULL);
     string build_log(build_log_data.begin(), build_log_data.end() - 1);
 
-    cerr << "Error building open cl program\n\nBuild log:\n" << build_log << endl;
+    fprintf(stderr, "Error building open cl program\n\nBuild log:\n%s\n", build_log.c_str());
 }
 
 void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const string device_type) noexcept {
@@ -371,7 +370,7 @@ void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const s
     cl_device_id device;
     try {
         device = getSelectedDevice(device_index, device_type);
-        cout << "Device = " << getDeviceInfo(device, CL_DEVICE_NAME) << endl;
+//        cout << "Device = " << getDeviceInfo(device, CL_DEVICE_NAME) << endl;
     } catch(runtime_error e) {
         fprintf(stderr, "%s\n", e.what());
         device = getSelectedDevice(0, "all");
@@ -379,18 +378,18 @@ void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const s
     }
 
     auto compute_units_count = getDeviceInfoUInt(device, CL_DEVICE_MAX_COMPUTE_UNITS);
-    cout << "CL_DEVICE_MAX_COMPUTE_UNITS = " << compute_units_count << endl;
+//    cout << "CL_DEVICE_MAX_COMPUTE_UNITS = " << compute_units_count << endl;
     auto dims = getDeviceInfoUInt(device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS);
-    cout << "CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS = " << dims << endl;
+//    cout << "CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS = " << dims << endl;
     auto wi_sizes = getDeviceInfoSizeTArray(device, CL_DEVICE_MAX_WORK_ITEM_SIZES, dims);
-    cout << "CL_DEVICE_MAX_WORK_ITEM_SIZES = " << wi_sizes[0] << endl;
+//    cout << "CL_DEVICE_MAX_WORK_ITEM_SIZES = " << wi_sizes[0] << endl;
     auto max_group_size = getDeviceInfoSizeT(device, CL_DEVICE_MAX_WORK_GROUP_SIZE);
-    cout << "CL_DEVICE_MAX_WORK_GROUP_SIZE = " << max_group_size << endl;
+//    cout << "CL_DEVICE_MAX_WORK_GROUP_SIZE = " << max_group_size << endl;
     auto max_mem = getDeviceInfoULong(device, CL_DEVICE_MAX_MEM_ALLOC_SIZE);
-    cout << "CL_DEVICE_MAX_MEM_ALLOC_SIZE = " << max_mem << endl;
+//    cout << "CL_DEVICE_MAX_MEM_ALLOC_SIZE = " << max_mem << endl;
     auto max_parallel = compute_units_count * max_group_size;
     max_parallel_computing = max_parallel / 4;
-    cout << "MAX = " << compute_units_count * max_group_size << endl;
+//    cout << "MAX = " << compute_units_count * max_group_size << endl;
 
     cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, NULL);
     cl_command_queue queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, NULL);
@@ -428,6 +427,7 @@ void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const s
     // если уже растянуто - не делаем ничего
     // или если например 1 цвет - не делаем ничего
     if ((min_v == 0 && max_v == 255) || min_v >= max_v) {
+        printf("Time: %g\n", analyze_elapsed + determine_min_max_elapsed);
         return;
     }
     float const scale = 255 / float(max_v - min_v);
@@ -438,11 +438,11 @@ void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const s
     clFinish(queue);
     clReleaseContext(context);
 
-    cout << "analyze = " << analyze_elapsed << endl;
-    cout << "determine_min_max_elapsed = " << determine_min_max_elapsed << endl;
-    cout << "scale_elapsed = " << scale_elapsed << endl;
+//    cout << "analyze = " << analyze_elapsed << endl;
+//    cout << "determine_min_max_elapsed = " << determine_min_max_elapsed << endl;
+//    cout << "scale_elapsed = " << scale_elapsed << endl;
 
-    printf("Time: %0.3f ms\n", scale_elapsed + analyze_elapsed + determine_min_max_elapsed);
+    printf("Time: %g\n", scale_elapsed + analyze_elapsed + determine_min_max_elapsed);
 }
 
 double PNMPicture::scaleImageData(
@@ -479,7 +479,7 @@ double PNMPicture::scaleImageData(
 
 void checkError(cl_int error) {
     if (error != 0) {
-        cerr << error << endl;
+        fprintf(stderr, "Error: %d", error);
     }
 }
 
@@ -492,7 +492,7 @@ double PNMPicture::analyzeDataOpenCL(
     cl_command_queue queue
 ) const noexcept {
     int chunk_size = data_size / max_parallel_computing;
-    cout << "CHUNK_SIZE = " << chunk_size << endl;
+//    cout << "CHUNK_SIZE = " << chunk_size << endl;
 
     cl_int kernel_creation_error;
     cl_kernel kernel = clCreateKernel(program, "makeGist", &kernel_creation_error);
@@ -511,7 +511,7 @@ double PNMPicture::analyzeDataOpenCL(
     const size_t work_size = max_parallel_computing;
     cl_int kernel_error = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &work_size, NULL, 0, NULL, &event);
     if (kernel_error != 0) {
-        cout << kernel_error << endl;
+        fprintf(stderr, "Kernel error %d\n", kernel_error);
     }
     clWaitForEvents(1, &event);
     clEnqueueReadBuffer(queue, device_gist, CL_TRUE, 0, gist_data_size, gist.data(), 0, NULL, NULL);
@@ -532,26 +532,6 @@ double PNMPicture::analyzeDataOpenCL(
     return open_cl_ms_elapsed;
 }
 
-/*
- *
- * cpu
- analyze = 411.798
- determine_min_max_elapsed = 0.001
- scale_elapsed = 1865.18
-
- * gpu 1
- analyze = 1605.16
- determine_min_max_elapsed = 0.001
- scale_elapsed = 7.648
-
- * gpu 2
- analyze = 485.442
- determine_min_max_elapsed = 0.002
- scale_elapsed = 13.5083
- Time: 498.952 ms
-
- *
- */
 
 
 

@@ -1,6 +1,5 @@
 #include <string>
 #include <map>
-#include <iostream>
 #include "pnm.h"
 #include "time_monitor.h"
 #include "args_parser.h"
@@ -71,31 +70,34 @@ int pseudoMain(int argc, char* argv[]) {
         return 0;
     }
 
-//    TODO: fix args count check
-//    if (argc < 7 || argc > 9) {
-//        fprintf(stderr, "Incorrect number of arguments, see help with --help");
-//        return 1;
-//    }
+    if (argc < 5 || argc > 11) {
+        fprintf(stderr, "Incorrect number of arguments, see help with --help");
+        return 1;
+    }
 
     string inputFileName = argsMap[constants::inputFileParam];
     string outputFilename = argsMap[constants::outputFileParam];
-    int deviceIndex = stoi(argsMap[constants::deviceIndex]);
+    int deviceIndex = 0;
+    if (argsMap[constants::deviceIndex] != "") {
+        deviceIndex = stoi(argsMap[constants::deviceIndex]);
+    }
     string deviceType = argsMap[constants::deviceType];
+    if (deviceType == "") {
+        deviceType = "dgpu";
+    }
     float coeff = stof(argsMap[constants::coefParam]);
 
     return executeContrasting(inputFileName, outputFilename, coeff, deviceIndex, deviceType, true);
 }
 
 int main(int argc, char* argv[]) {
-//    return pseudoMain(argc, argv);
+    return pseudoMain(argc, argv);
 
-    fprintf(stdout, "Starting\n");
-    int result;
-    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "dgpu", false);
-    cout << endl << endl;
-    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "dgpu", true);
-    // gpu - 15.062
-    // cpu - 2052.41
-    fprintf(stdout, "Ending\n");
-    return result;
+//    fprintf(stdout, "Starting\n");
+//    int result;
+//    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "dgpu", false);
+//    cout << endl << endl;
+//    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "dgpu", true);
+//    fprintf(stdout, "Ending\n");
+//    return result;
 }
