@@ -9,9 +9,6 @@
 #include <cmath>
 #include <stdio.h>
 #include <stdexcept>
-#ifndef __APPLE__
-#include <algoriphm>
-#endif
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -275,15 +272,15 @@ cl_device_id getSelectedDevice(int device_index, string device_type) {
         }
 
         if (device_type == "dgpu" || device_type == "igpu") {
-            copy_if(all_devices.begin(), all_devices.end(), back_inserter(filtered_devices), [device_type](cl_device_id device){
+            for (cl_device_id d : all_devices) {
                 cl_bool isIntegrated;
-                clGetDeviceInfo(device, CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(cl_bool), &isIntegrated, NULL);
-                if (device_type == "dgpu") {
-                    return isIntegrated == 0;
-                } else {
-                    return isIntegrated == 1;
+                clGetDeviceInfo(d, CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(cl_bool), &isIntegrated, NULL);
+                if (device_type == "dgpu" && isIntegrated == 0) {
+                    filtered_devices.push_back(d);
+                } else if (isIntegrated == 1) {
+                    filtered_devices.push_back(d);
                 }
-            });
+            }
         } else {
             filtered_devices = all_devices;
         }
