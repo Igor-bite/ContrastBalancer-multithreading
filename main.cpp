@@ -31,7 +31,9 @@ int executeContrasting(
         float coeff,
         int deviceIndex,
         string deviceType,
-        bool isOpenCL
+        bool isOpenCL,
+        int partOfAllWorkItems,
+        CSVWriter *csv
 ) {
     PNMPicture picture;
     try {
@@ -46,8 +48,10 @@ int executeContrasting(
         return 1;
     }
 
+    picture.csv = csv;
+
     if (isOpenCL) {
-        picture.modifyOpenCL(coeff, deviceIndex, deviceType);
+        picture.modifyOpenCL(coeff, deviceIndex, deviceType, partOfAllWorkItems);
     } else {
         picture.modify(coeff);
     }
@@ -87,17 +91,27 @@ int pseudoMain(int argc, char* argv[]) {
     }
     float coeff = stof(argsMap[constants::coefParam]);
 
-    return executeContrasting(inputFileName, outputFilename, coeff, deviceIndex, deviceType, true);
+    return executeContrasting(inputFileName, outputFilename, coeff, deviceIndex, deviceType, true, 4, nullptr);
 }
 
 int main(int argc, char* argv[]) {
-    return pseudoMain(argc, argv);
+//    return pseudoMain(argc, argv);
 
-//    fprintf(stdout, "Starting\n");
-//    int result;
-//    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "dgpu", false);
-//    cout << endl << endl;
-//    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "dgpu", true);
-//    fprintf(stdout, "Ending\n");
-//    return result;
+    fprintf(stdout, "Starting\n");
+    int result;
+    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "dgpu", false, 4, nullptr);
+    fprintf(stdout, "\n\n");
+    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "dgpu", true, 4, nullptr);
+    fprintf(stdout, "Ending\n");
+    return result;
+
+    auto csv = CSVWriter("raw_data.csv");
+    vector<int> parts = { 1, 2, 3, 4, 6, 8, 16 };
+    for (int p : parts) {
+        //result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "all", true, p);
+        result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 1, "all", true, p, &csv);
+        result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 2, "all", true, p, &csv);
+        result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 3, "all", true, p, &csv);
+    }
+
 }

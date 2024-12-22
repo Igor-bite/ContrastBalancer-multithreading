@@ -9,6 +9,7 @@
 
 #include <string>
 #include <vector>
+#include "csv_writer.h"
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
@@ -32,7 +33,7 @@ public:
     void write();
 
     void modify(const float coeff) noexcept;
-    void modifyOpenCL(const float coeff, const int device_index, const string device_type) noexcept;
+    void modifyOpenCL(const float coeff, const int device_index, const string device_type, const int partOfAllWorkItems) noexcept;
 
     int format;
     int width, height;
@@ -43,6 +44,7 @@ public:
     FILE *fout;
     vector<uchar> data;
     int max_parallel_computing;
+    CSVWriter *csv;
 
 private:
     void analyzeData(vector<size_t> &elements) const noexcept;

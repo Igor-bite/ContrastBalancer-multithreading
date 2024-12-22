@@ -15,17 +15,15 @@ public:
     explicit CSVWriter(string filename);
 
     void write(
-        string inputFileName,
-        int threadsCount,
-        bool isCppOff,
-        bool isOmp,
-        string scheduleModifier,
-        string scheduleKind,
-        int chunkSize,
-        double time
-    );
+            string inputFileName,
+            int partOfAllWorkItems,
+            int workItemsCount,
+            int chunkSize,
+            double time
+            );
 
 private:
+    string filename;
     ofstream file;
 };
 

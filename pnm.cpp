@@ -6,6 +6,7 @@
 
 #include "pnm.h"
 #include "time_monitor.h"
+#include "csv_writer.h"
 #include <cmath>
 #include <stdio.h>
 #include <stdexcept>
@@ -239,7 +240,10 @@ string getDeviceInfo(cl_device_id id, cl_device_info info) {
 
 vector<cl_device_id> getAllDevices(cl_platform_id platform, cl_device_type device_type) {
     cl_uint num_devices;
-    clGetDeviceIDs(platform, device_type, 0, NULL, &num_devices);
+    cl_int error = clGetDeviceIDs(platform, device_type, 0, NULL, &num_devices);
+    if (error != 0) {
+        return {};
+    }
     vector<cl_device_id> devices(num_devices);
     clGetDeviceIDs(platform, device_type, num_devices, devices.data(), NULL);
     return devices;
@@ -255,10 +259,8 @@ cl_device_id getSelectedDevice(int device_index, string device_type) {
     vector<cl_platform_id> platforms(num);
     clGetPlatformIDs(num, platforms.data(), NULL);
 
-    vector<cl_device_type> cur_device_types = {CL_DEVICE_TYPE_ALL };
-    if (device_type == "all") {
-        cur_device_types = { CL_DEVICE_TYPE_CPU, CL_DEVICE_TYPE_GPU };
-    } else if (device_type.find("gpu") != string::npos) {
+    vector<cl_device_type> cur_device_types = { CL_DEVICE_TYPE_ALL };
+    if (device_type.find("gpu") != string::npos) {
         cur_device_types = { CL_DEVICE_TYPE_GPU };
     } else if (device_type == "cpu") {
         cur_device_types = { CL_DEVICE_TYPE_CPU };
@@ -277,7 +279,8 @@ cl_device_id getSelectedDevice(int device_index, string device_type) {
                 clGetDeviceInfo(d, CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(cl_bool), &isIntegrated, NULL);
                 if (device_type == "dgpu" && isIntegrated == 0) {
                     filtered_devices.push_back(d);
-                } else if (isIntegrated == 1) {
+                }
+                if (device_type == "igpu" && isIntegrated == 1) {
                     filtered_devices.push_back(d);
                 }
             }
@@ -285,10 +288,21 @@ cl_device_id getSelectedDevice(int device_index, string device_type) {
             filtered_devices = all_devices;
         }
     }
+
+    fprintf(stdout, "all_devices = %d\n", all_devices.size());
+    fprintf(stdout, "filtered_devices = %d\n", filtered_devices.size());
+    for (cl_device_id d : all_devices) {
+        fprintf(stdout, "Debug Device = %s\n", getDeviceInfo(d, CL_DEVICE_NAME).c_str());
+    }
+    if (filtered_devices.size() == 0) {
+        return NULL;
+    }
     if (device_index < filtered_devices.size()) {
         return filtered_devices[device_index];
     }
-    throw runtime_error("No device with specified characteristics");
+    else {
+        return filtered_devices[0];
+    }
 }
 
 cl_program getOpenCLProgram(cl_context context) {
@@ -361,18 +375,16 @@ void printBuildLog(cl_device_id selectedDevice, cl_program program) {
     fprintf(stderr, "Error building open cl program\n\nBuild log:\n%s\n", build_log.c_str());
 }
 
-void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const string device_type) noexcept {
+void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const string device_type, const int partOfAllWorkItems) noexcept {
     auto tm = TimeMonitor(false);
 
     cl_device_id device;
-    try {
-        device = getSelectedDevice(device_index, device_type);
-//        cout << "Device = " << getDeviceInfo(device, CL_DEVICE_NAME) << endl;
-    } catch(runtime_error e) {
-        fprintf(stderr, "%s\n", e.what());
-        device = getSelectedDevice(0, "all");
-//        cout << "Device = " << getDeviceInfo(device, CL_DEVICE_NAME) << endl;
+    device = getSelectedDevice(device_index, device_type);
+    if (device == NULL) {
+        modify(coeff);
+        return;
     }
+    fprintf(stdout, "Device = %s\n", getDeviceInfo(device, CL_DEVICE_NAME).c_str());
 
     auto compute_units_count = getDeviceInfoUInt(device, CL_DEVICE_MAX_COMPUTE_UNITS);
 //    cout << "CL_DEVICE_MAX_COMPUTE_UNITS = " << compute_units_count << endl;
@@ -385,7 +397,7 @@ void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const s
     auto max_mem = getDeviceInfoULong(device, CL_DEVICE_MAX_MEM_ALLOC_SIZE);
 //    cout << "CL_DEVICE_MAX_MEM_ALLOC_SIZE = " << max_mem << endl;
     auto max_parallel = compute_units_count * max_group_size;
-    max_parallel_computing = max_parallel / 4;
+    max_parallel_computing = max_parallel / partOfAllWorkItems;
 //    cout << "MAX = " << compute_units_count * max_group_size << endl;
 
     cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, NULL);
@@ -439,7 +451,10 @@ void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const s
 //    cout << "determine_min_max_elapsed = " << determine_min_max_elapsed << endl;
 //    cout << "scale_elapsed = " << scale_elapsed << endl;
 
-    printf("Time: %g\n", scale_elapsed + analyze_elapsed + determine_min_max_elapsed);
+    double time = scale_elapsed + analyze_elapsed + determine_min_max_elapsed;
+    printf("Time: %g\n", time);
+    int chunk_size = data_size / max_parallel_computing;
+    csv->write("in.ppm", partOfAllWorkItems, max_parallel_computing, chunk_size, time);
 }
 
 double PNMPicture::scaleImageData(
@@ -477,6 +492,7 @@ double PNMPicture::scaleImageData(
 void checkError(cl_int error) {
     if (error != 0) {
         fprintf(stderr, "Error: %d", error);
+        exit(error);
     }
 }
 
@@ -488,16 +504,33 @@ double PNMPicture::analyzeDataOpenCL(
     cl_context context,
     cl_command_queue queue
 ) const noexcept {
-    int chunk_size = data_size / max_parallel_computing;
+    int minchs = 100;
+    int chunk_size;
+    int workitemscount;
+    if (minchs > data_size / max_parallel_computing) {
+        chunk_size = minchs;
+        workitemscount = (data_size / minchs + 0.5);
+    }
+    else {
+        chunk_size = data_size / max_parallel_computing;
+        workitemscount = max_parallel_computing;
+    }
 //    cout << "CHUNK_SIZE = " << chunk_size << endl;
 
     cl_int kernel_creation_error;
     cl_kernel kernel = clCreateKernel(program, "makeGist", &kernel_creation_error);
 
-    size_t gist_size = 256 * max_parallel_computing;
-    vector<size_t> gist(gist_size, 0);
-    size_t gist_data_size = gist_size * sizeof(size_t);
-    cl_mem device_gist = clCreateBuffer(context, CL_MEM_READ_WRITE, gist_data_size, NULL, NULL);
+    size_t gist_size = 256 * workitemscount;
+    fprintf(stdout, "max_parallel_computing %d\n", workitemscount);
+    fprintf(stdout, "gist_size %zu\n", gist_size);
+    vector<unsigned int> gist(gist_size, 0);
+    size_t gist_data_size = gist_size * sizeof(unsigned int);
+    fprintf(stdout, "gist_data_size %zu\n", gist_data_size);
+    cl_int device_gist_creation_error;
+    cl_mem device_gist = clCreateBuffer(context, CL_MEM_READ_WRITE, gist_data_size, NULL, &device_gist_creation_error);
+    if (device_gist_creation_error != 0) {
+        fprintf(stderr, "device_gist_creation_error = %d", device_gist_creation_error);
+    }
     checkError(clEnqueueWriteBuffer(queue, device_gist, CL_FALSE, 0, gist_data_size, gist.data(), 0, NULL, NULL));
 
     checkError(clSetKernelArg(kernel, 0, sizeof(cl_mem), &device_data));
@@ -509,8 +542,8 @@ double PNMPicture::analyzeDataOpenCL(
     cl_int kernel_error = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &work_size, NULL, 0, NULL, &event);
     if (kernel_error != 0) {
         fprintf(stderr, "Kernel error %d\n", kernel_error);
+        exit(kernel_error);
     }
-    clWaitForEvents(1, &event);
     clEnqueueReadBuffer(queue, device_gist, CL_TRUE, 0, gist_data_size, gist.data(), 0, NULL, NULL);
 
     for (size_t i = 0; i < 256; i++) {

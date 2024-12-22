@@ -4,8 +4,13 @@ kernel void makeGist(global const uchar *data, global size_t *gist, const int ch
     uint data_from = global_id * chunk_size;
     uint data_to = (global_id + 1) * chunk_size;
     uint offset = 256 * global_id;
+
+    // work with local mem
+    // use atomics
+    // sync before exporting to global mem
+
     for (uint i = data_from; i < data_to; i++) {
-        size_t index = (data[i] + offset);
+        size_t index = (data[i] + offset) * 2;
         gist[index] += 1;
     }
 }
