@@ -158,44 +158,24 @@ void PNMPicture::determineMinMax(
     uchar &max_v
     ) const noexcept {
     int darkCount = 0;
-    bool isDarkComplete = false;
-
-    int brightCount = 0;
-    bool isBrightComplete = false;
 
     for (size_t i = 0; i < 256; i++) {
-        if (!isDarkComplete) {
-            size_t darkIndex = i;
-            int element = elements[darkIndex];
-            if (darkCount < ignoreCount) {
-                darkCount += element;
-            }
-
-            if (darkCount >= ignoreCount && element != 0) {
-                isDarkComplete = true;
-                min_v = darkIndex;
-            }
-        }
-        if (!isBrightComplete) {
-            size_t brightIndex = 255 - i;
-            int element = elements[brightIndex];
-            if (brightCount < ignoreCount) {
-                brightCount += element;
-            }
-
-            if (brightCount >= ignoreCount && element != 0) {
-                isBrightComplete = true;
-                max_v = brightIndex;
-            }
+        size_t darkIndex = i;
+        int element = elements[darkIndex];
+        if (darkCount < ignoreCount) {
+            darkCount += element;
         }
 
-        if (isDarkComplete && isBrightComplete) {
+        if (darkCount >= ignoreCount && element != 0) {
+            min_v = darkIndex;
             break;
         }
     }
 
-    for (size_t i = 0; i < 256; i++) {
-        size_t brightIndex = 255 - i;
+    int brightCount = 0;
+
+    for (size_t i = 255; i >= 0; i--) {
+        size_t brightIndex = i;
         int element = elements[brightIndex];
         if (brightCount < ignoreCount) {
             brightCount += element;
