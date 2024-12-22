@@ -43,7 +43,8 @@ public:
     FILE *fin;
     FILE *fout;
     vector<uchar> data;
-    int max_parallel_computing;
+    int compute_units_count;
+    int max_group_size;
     CSVWriter *csv;
 
 private:

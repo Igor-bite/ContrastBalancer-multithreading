@@ -375,9 +375,10 @@ void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const s
     auto max_group_size = getDeviceInfoSizeT(device, CL_DEVICE_MAX_WORK_GROUP_SIZE);
 //    cout << "CL_DEVICE_MAX_WORK_GROUP_SIZE = " << max_group_size << endl;
     auto max_mem = getDeviceInfoULong(device, CL_DEVICE_MAX_MEM_ALLOC_SIZE);
-//    cout << "CL_DEVICE_MAX_MEM_ALLOC_SIZE = " << max_mem << endl;
-    auto max_parallel = compute_units_count * max_group_size;
-    max_parallel_computing = max_parallel / partOfAllWorkItems;
+    printf("CL_DEVICE_MAX_MEM_ALLOC_SIZE: %zu\n", max_mem);
+    auto max_parallel = compute_units_count;
+    this->compute_units_count = max_parallel;
+    this->max_group_size = max_group_size;
 //    cout << "MAX = " << compute_units_count * max_group_size << endl;
 
     cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, NULL);
@@ -433,8 +434,8 @@ void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const s
 
     double time = scale_elapsed + analyze_elapsed + determine_min_max_elapsed;
     printf("Time: %g\n", time);
-    int chunk_size = data_size / max_parallel_computing;
-    csv->write("in.ppm", partOfAllWorkItems, max_parallel_computing, chunk_size, time);
+    int chunk_size = data_size / compute_units_count;
+    csv->write("in.ppm", partOfAllWorkItems, compute_units_count, chunk_size, time);
 }
 
 double PNMPicture::scaleImageData(
@@ -484,24 +485,14 @@ double PNMPicture::analyzeDataOpenCL(
     cl_context context,
     cl_command_queue queue
 ) const noexcept {
-    int minchs = 100;
-    int chunk_size;
-    int workitemscount;
-    if (minchs > data_size / max_parallel_computing) {
-        chunk_size = minchs;
-        workitemscount = (data_size / minchs + 0.5);
-    }
-    else {
-        chunk_size = data_size / max_parallel_computing;
-        workitemscount = max_parallel_computing;
-    }
-//    cout << "CHUNK_SIZE = " << chunk_size << endl;
+    int chunks_count = compute_units_count;
+    int chunk_size = data_size / chunks_count;
 
     cl_int kernel_creation_error;
     cl_kernel kernel = clCreateKernel(program, "makeGist", &kernel_creation_error);
 
-    size_t gist_size = 256 * workitemscount;
-    fprintf(stdout, "max_parallel_computing %d\n", workitemscount);
+    size_t gist_size = 256;
+    fprintf(stdout, "compute_units_count %d\n", compute_units_count);
     fprintf(stdout, "gist_size %zu\n", gist_size);
     vector<unsigned int> gist(gist_size, 0);
     size_t gist_data_size = gist_size * sizeof(unsigned int);
@@ -513,13 +504,18 @@ double PNMPicture::analyzeDataOpenCL(
     }
     checkError(clEnqueueWriteBuffer(queue, device_gist, CL_FALSE, 0, gist_data_size, gist.data(), 0, NULL, NULL));
 
+    unsigned int local_chunk_size = chunk_size / max_group_size;
+    fprintf(stdout, "local_chunk_size %d\n", local_chunk_size);
+
     checkError(clSetKernelArg(kernel, 0, sizeof(cl_mem), &device_data));
     checkError(clSetKernelArg(kernel, 1, sizeof(cl_mem), &device_gist));
-    checkError(clSetKernelArg(kernel, 2, sizeof(cl_int), &chunk_size));
+    checkError(clSetKernelArg(kernel, 2, sizeof(cl_int), &local_chunk_size));
+    checkError(clSetKernelArg(kernel, 3, chunk_size * sizeof(cl_uchar), nullptr));
 
     cl_event event;
-    const size_t work_size = max_parallel_computing;
-    cl_int kernel_error = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &work_size, NULL, 0, NULL, &event);
+    const size_t global_work_size = compute_units_count * max_group_size;
+    const size_t local_work_size = max_group_size;
+    cl_int kernel_error = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_work_size, &local_work_size, 0, NULL, &event);
     if (kernel_error != 0) {
         fprintf(stderr, "Kernel error %d\n", kernel_error);
         exit(kernel_error);
@@ -527,10 +523,9 @@ double PNMPicture::analyzeDataOpenCL(
     clEnqueueReadBuffer(queue, device_gist, CL_TRUE, 0, gist_data_size, gist.data(), 0, NULL, NULL);
 
     for (size_t i = 0; i < 256; i++) {
-        for (size_t j = 0; j < work_size; j++) {
-            elements[i] += gist[i + j * 256];
-        }
+        fprintf(stdout, "%d, ", gist[i]);
     }
+    fprintf(stdout, "\n\n");
 
     cl_ulong time_start;
     cl_ulong time_end;

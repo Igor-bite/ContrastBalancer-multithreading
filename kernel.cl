@@ -1,9 +1,9 @@
-void determineMinMax() {
-
-}
-
-kernel void makeGist(global const uchar *data, global size_t *gist, const int chunk_size)
-{
+kernel void makeGist(
+    global const uchar *data,
+    global uint *gist,
+    const int chunk_size,
+    local uchar *local_data
+) {
     /*
 
     разделяем данные на чанки
@@ -23,18 +23,27 @@ kernel void makeGist(global const uchar *data, global size_t *gist, const int ch
     */
 
     uint global_id = get_global_id(0);
-    uint data_from = global_id * chunk_size;
-    uint data_to = (global_id + 1) * chunk_size;
-    uint offset = 256 * global_id;
+    uint local_id = get_local_id(0);
+
+    uint data_from = local_id * chunk_size;
+    uint data_to = (local_id + 1) * chunk_size;
+
+    for (uint i = data_from; i < data_to; i++) {
+        local_data[i] = data[i];
+    }
+
+    for (uint i = data_from; i < data_to; i++) {
+        atomic_inc(gist + local_data[i]);
+    }
 
     // work with local mem
     // use atomics
     // sync before exporting to global mem
 
-    for (uint i = data_from; i < data_to; i++) {
-        size_t index = (data[i] + offset) * 2;
-        gist[index] += 1;
-    }
+//    for (uint i = data_from; i < data_to; i++) {
+//        size_t index = (data[i] + offset) * 2;
+//        gist[index] += 1;
+//    }
 }
 
 kernel void modify(global uchar *data, const float scale, const float scaledMinValue)
