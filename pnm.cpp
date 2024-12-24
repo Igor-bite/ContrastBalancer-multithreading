@@ -176,6 +176,7 @@ void PNMPicture::determineMinMax(
 
         if (darkCount >= ignoreCount && element != 0) {
             min_v = darkIndex;
+            printf("darkCount = %d\n\n", darkCount);
             break;
         }
     }
@@ -191,6 +192,7 @@ void PNMPicture::determineMinMax(
 
         if (brightCount >= ignoreCount && element != 0) {
             max_v = brightIndex;
+            printf("brightCount = %d\n\n", brightCount);
             break;
         }
     }

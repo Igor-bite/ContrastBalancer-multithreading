@@ -6,13 +6,15 @@ void determineMinMax(
 
     for (uint i = 0; i < 256; i++) {
         uint darkIndex = i;
-        uint element = gist[darkIndex];
+        int element = gist[darkIndex];
         if (darkCount < ignore_count) {
             darkCount += element;
+            gist[255-i] = element;
         }
 
         if (darkCount >= ignore_count && element != 0) {
             gist[1] = darkIndex;
+            gist[3] = darkCount;
             break;
         }
     }
@@ -28,6 +30,7 @@ void determineMinMax(
 
         if (brightCount >= ignore_count && element != 0) {
             gist[2] = brightIndex;
+            gist[4] = brightCount;
             break;
         }
     }
@@ -78,7 +81,10 @@ kernel void makeGist(
     }
 
     local uint local_gist[256];
-    for (uint i = 0; i < max(1, int(256 / group_size)); i++) {
+    uint max_index = 256 / group_size;
+    uint min_max_index = 1;
+    max_index = max(min_max_index, max_index);
+    for (uint i = 0; i < max_index; i++) {
         uint index = i * group_size + local_id;
         local_gist[index] = 0;
     }
@@ -99,9 +105,6 @@ kernel void makeGist(
 
     barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
-    uint min_v = 255;
-    uint max_v = 0;
-
     if (global_id == 0) {
         determineMinMax(
             ignore_count,
@@ -111,11 +114,12 @@ kernel void makeGist(
 
     barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
-    min_v = gist[1];
-    max_v = gist[2];
+    float min_v = gist[1];
+    float max_v = gist[2];
 
-    float const scale = 255 / float(max_v - min_v);
-    float const scaledMinV = scale * float(min_v);
+    float const max_value = 255;
+    float const scale = max_value / (max_v - min_v);
+    float const scaledMinV = scale * min_v;
 
     for (uint i = data_from; i < data_to; i++) {
         int local_data_index = i - group_data_from;
