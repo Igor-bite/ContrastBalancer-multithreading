@@ -1,4 +1,4 @@
-void determineMinMax(
+kernel void determineMinMax(
     uint ignore_count,
     global uint *gist
 ) {
@@ -9,12 +9,12 @@ void determineMinMax(
         int element = gist[darkIndex];
         if (darkCount < ignore_count) {
             darkCount += element;
-            gist[255-i] = element;
+            //gist[255-i] = element;
         }
 
         if (darkCount >= ignore_count && element != 0) {
             gist[1] = darkIndex;
-            gist[3] = darkCount;
+            //gist[3] = darkCount;
             break;
         }
     }
@@ -30,7 +30,7 @@ void determineMinMax(
 
         if (brightCount >= ignore_count && element != 0) {
             gist[2] = brightIndex;
-            gist[4] = brightCount;
+            //gist[4] = brightCount;
             break;
         }
     }
@@ -103,6 +103,8 @@ kernel void makeGist(
         atomic_add(gist + index, local_gist[index]);
     }
 
+    return;
+
     barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
     if (global_id == 0) {
@@ -126,4 +128,11 @@ kernel void makeGist(
         int scaledValue = scale * local_data[local_data_index] - scaledMinV;
         data[i] = max(0, min(scaledValue, 255));
     }
+}
+
+kernel void modify(global uchar *data, const float scale, const float scaledMinValue)
+{
+    uint i = get_global_id(0);
+    int scaledValue = scale * data[i] - scaledMinValue;
+    data[i] = max(0, min(scaledValue, 255));
 }

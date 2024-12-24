@@ -119,11 +119,11 @@ void PNMPicture::modify(const float coeff) noexcept {
     tm.start();
     determineMinMax(ignoreCount, elements, min_v, max_v);
     for (size_t i = 0; i < 256; i++) {
-        fprintf(stdout, "%d, ", elements[i]);
+        fprintf(stdout, "%lu, ", elements[i]);
     }
     auto determine_min_max_elapsed = tm.stop();
 
-    printf("\n\nignoreCount = %d, min_v = %d, max_v = %d\n", ignoreCount, min_v, max_v);
+    printf("\n\nignoreCount = %zu, min_v = %d, max_v = %d\n", ignoreCount, min_v, max_v);
 
     // если уже растянуто - не делаем ничего
     // или если например 1 цвет - не делаем ничего
@@ -279,8 +279,8 @@ cl_device_id getSelectedDevice(int device_index, string device_type) {
         }
     }
 
-    fprintf(stdout, "all_devices = %d\n", all_devices.size());
-    fprintf(stdout, "filtered_devices = %d\n", filtered_devices.size());
+    fprintf(stdout, "all_devices = %zu\n", all_devices.size());
+    fprintf(stdout, "filtered_devices = %zu\n", filtered_devices.size());
     for (cl_device_id d : all_devices) {
         fprintf(stdout, "Debug Device = %s\n", getDeviceInfo(d, CL_DEVICE_NAME).c_str());
     }
@@ -385,7 +385,7 @@ void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const s
     auto max_group_size = getDeviceInfoSizeT(device, CL_DEVICE_MAX_WORK_GROUP_SIZE);
 //    cout << "CL_DEVICE_MAX_WORK_GROUP_SIZE = " << max_group_size << endl;
     auto max_mem = getDeviceInfoULong(device, CL_DEVICE_MAX_MEM_ALLOC_SIZE);
-    printf("CL_DEVICE_MAX_MEM_ALLOC_SIZE: %zu\n", max_mem);
+    printf("CL_DEVICE_MAX_MEM_ALLOC_SIZE: %llu\n", max_mem);
     auto max_parallel = compute_units_count;
     this->compute_units_count = max_parallel;
     this->max_group_size = max_group_size;
@@ -512,8 +512,8 @@ double PNMPicture::analyzeDataOpenCL(
     size_t gist_size = 256;
     fprintf(stdout, "compute_units_count %d\n", compute_units_count);
     fprintf(stdout, "gist_size %zu\n", gist_size);
-    vector<uint> gist(gist_size, 0);
-    size_t gist_data_size = gist_size * sizeof(uint);
+    vector<cl_uint> gist(gist_size, 0);
+    size_t gist_data_size = gist_size * sizeof(cl_uint);
     fprintf(stdout, "gist_data_size %zu\n", gist_data_size);
     cl_int device_gist_creation_error;
     cl_mem device_gist = clCreateBuffer(context, CL_MEM_READ_WRITE, gist_data_size, NULL, &device_gist_creation_error);
@@ -526,14 +526,14 @@ double PNMPicture::analyzeDataOpenCL(
     fprintf(stdout, "local_chunk_size %d\n", local_chunk_size);
 
     fprintf(stdout, "\n====== KERNEL ARGS INFO ======\n");
-    fprintf(stdout, "0) data_size = %d\n", data_size);
-    fprintf(stdout, "1) gist_size = %d\n", gist_size);
-    fprintf(stdout, "1) gist_data_size = %d\n", gist_data_size);
+    fprintf(stdout, "0) data_size = %zu\n", data_size);
+    fprintf(stdout, "1) gist_size = %zu\n", gist_size);
+    fprintf(stdout, "1) gist_data_size = %zu\n", gist_data_size);
     fprintf(stdout, "2) chunk_size = %d\n", chunk_size);
-    fprintf(stdout, "2) chunk_size_bytes = %d\n", sizeof(cl_int));
+    fprintf(stdout, "2) chunk_size_bytes = %lu\n", sizeof(cl_int));
     fprintf(stdout, "3) ignoreCount = %d\n", ignoreCount);
-    fprintf(stdout, "3) ignoreCount_bytes = %d\n", sizeof(cl_uint));
-    fprintf(stdout, "4) local_data_bytes = %d\n", chunk_size * sizeof(uchar));
+    fprintf(stdout, "3) ignoreCount_bytes = %lu\n", sizeof(cl_uint));
+    fprintf(stdout, "4) local_data_bytes = %lu\n", chunk_size * sizeof(uchar));
 
     checkError(clSetKernelArg(kernel, 0, sizeof(cl_mem), &device_data));
     checkError(clSetKernelArg(kernel, 1, sizeof(cl_mem), &device_gist));
@@ -546,14 +546,47 @@ double PNMPicture::analyzeDataOpenCL(
     const size_t global_work_size = compute_units_count * max_group_size;
     const size_t local_work_size = max_group_size;
     fprintf(stdout, "\n====== WORK ITEMS CONFIG ======\n");
-    fprintf(stdout, "global_work_size = %d\n", global_work_size);
-    fprintf(stdout, "local_work_size = %d\n", local_work_size);
+    fprintf(stdout, "global_work_size = %zu\n", global_work_size);
+    fprintf(stdout, "local_work_size = %zu\n", local_work_size);
     cl_int kernel_error = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_work_size, &local_work_size, 0, NULL, &event);
     if (kernel_error != 0) {
-        fprintf(stderr, "Kernel execution error %d\n", kernel_error);
+        fprintf(stderr, "Kernel makeGist execution error %d\n", kernel_error);
         exit(kernel_error);
     }
+
+    kernel = clCreateKernel(program, "determineMinMax", &kernel_creation_error);
+
+    checkError(clSetKernelArg(kernel, 0, sizeof(cl_uint), &ignoreCount));
+    checkError(clSetKernelArg(kernel, 1, sizeof(cl_mem), &device_gist));
+
+    const size_t determineMinMaxWorkSize = 1;
+    kernel_error = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &determineMinMaxWorkSize, NULL, 0, NULL, &event);
+    if (kernel_error != 0) {
+        fprintf(stderr, "Kernel determineMinMax execution error %d\n", kernel_error);
+        exit(kernel_error);
+    }
+
     clEnqueueReadBuffer(queue, device_gist, CL_TRUE, 0, gist_data_size, gist.data(), 0, NULL, NULL);
+
+    cl_uint min_v = gist[1];
+    cl_uint max_v = gist[2];
+    cl_float const scale = 255 / cl_float(max_v - min_v);
+    cl_float const scaledMinV = scale * cl_float(min_v);
+    printf("\n\nmin_v = %d, max_v = %d\n", min_v, max_v);
+
+    kernel = clCreateKernel(program, "modify", &kernel_creation_error);
+
+    checkError(clSetKernelArg(kernel, 0, sizeof(cl_mem), &device_data));
+    checkError(clSetKernelArg(kernel, 1, sizeof(cl_float), &scale));
+    checkError(clSetKernelArg(kernel, 2, sizeof(cl_float), &scaledMinV));
+
+    const size_t modifyWorkSize = data_size;
+    kernel_error = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &modifyWorkSize, NULL, 0, NULL, &event);
+    if (kernel_error != 0) {
+        fprintf(stderr, "Kernel modify execution error %d\n", kernel_error);
+        exit(kernel_error);
+    }
+
     uint device_data_size = data_size * sizeof(cl_uchar);
     clEnqueueReadBuffer(queue, device_data, CL_TRUE, 0, device_data_size, data.data(), 0, NULL, NULL);
 
