@@ -55,8 +55,9 @@ private:
         cl_program program,
         cl_device_id device,
         cl_context context,
-        cl_command_queue queue
-    ) const noexcept;
+        cl_command_queue queue,
+        uint ignoreCount
+    ) noexcept;
     double scaleImageData(
         cl_mem device_data,
         cl_device_id device,

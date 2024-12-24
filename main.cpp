@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
     int result;
     result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "dgpu", false, 4, nullptr);
     fprintf(stdout, "\n\n");
-    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "dgpu", true, 4, nullptr);
+    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "gpu", true, 4, nullptr);
     fprintf(stdout, "Ending\n");
     return result;
 

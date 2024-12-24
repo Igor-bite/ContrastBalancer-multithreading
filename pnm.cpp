@@ -118,7 +118,12 @@ void PNMPicture::modify(const float coeff) noexcept {
 //    cout << endl;
     tm.start();
     determineMinMax(ignoreCount, elements, min_v, max_v);
+    for (size_t i = 0; i < 256; i++) {
+        fprintf(stdout, "%d, ", elements[i]);
+    }
     auto determine_min_max_elapsed = tm.stop();
+
+    printf("\n\nignoreCount = %d, min_v = %d, max_v = %d\n", ignoreCount, min_v, max_v);
 
     // если уже растянуто - не делаем ничего
     // или если например 1 цвет - не делаем ничего
@@ -127,7 +132,9 @@ void PNMPicture::modify(const float coeff) noexcept {
     }
 
     float const scale = 255 / float(max_v - min_v);
-    float scaledMinV = scale * float(min_v);
+    float const scaledMinV = scale * float(min_v);
+
+    printf("\n\nscale = %f, scaledMinV = %f\n", scale, scaledMinV);
 
     uchar* d = data.data();
     tm.start();
@@ -140,6 +147,7 @@ void PNMPicture::modify(const float coeff) noexcept {
 //    cout << "analyze = " << analyze_elapsed << endl;
 //    cout << "determine_min_max_elapsed = " << determine_min_max_elapsed << endl;
 //    cout << "scale_elapsed = " << scale_elapsed << endl;
+    printf("\nTime: %g\n", analyze_elapsed + determine_min_max_elapsed + scale_elapsed);
 }
 
 void PNMPicture::analyzeData(vector<size_t> & elements) const noexcept {
@@ -400,16 +408,23 @@ void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const s
         return;
     }
 
-    size_t ignoreCount = data_size * coeff;
+    uint ignoreCount = data_size * coeff;
     vector<size_t> elements(256, 0);
     uchar min_v = 255;
     uchar max_v = 0;
 
-    double analyze_elapsed = analyzeDataOpenCL(elements, device_data, program, device, context, queue);
+    double analyze_elapsed = analyzeDataOpenCL(elements, device_data, program, device, context, queue, ignoreCount);
+    printf("Analyzed\n");
+
+    clFinish(queue);
+    clReleaseContext(context);
+
+    printf("Time: %g\n", analyze_elapsed);
+    return;
 //    for (int i = 0; i < elements.size(); i++) {
-//        cout << elements[i] << ", ";
+//        printf("%d, ", elements[i]);
 //    }
-//    cout << endl;
+//    printf("\n\n");
     tm.start();
     determineMinMax(ignoreCount, elements, min_v, max_v);
     auto determine_min_max_elapsed = tm.stop();
@@ -483,10 +498,11 @@ double PNMPicture::analyzeDataOpenCL(
     cl_program program,
     cl_device_id device,
     cl_context context,
-    cl_command_queue queue
-) const noexcept {
-    int chunks_count = compute_units_count;
-    int chunk_size = data_size / chunks_count;
+    cl_command_queue queue,
+    uint ignoreCount
+) noexcept {
+    int groups_count = compute_units_count;
+    int chunk_size = data_size / groups_count + 1;
 
     cl_int kernel_creation_error;
     cl_kernel kernel = clCreateKernel(program, "makeGist", &kernel_creation_error);
@@ -494,8 +510,8 @@ double PNMPicture::analyzeDataOpenCL(
     size_t gist_size = 256;
     fprintf(stdout, "compute_units_count %d\n", compute_units_count);
     fprintf(stdout, "gist_size %zu\n", gist_size);
-    vector<unsigned int> gist(gist_size, 0);
-    size_t gist_data_size = gist_size * sizeof(unsigned int);
+    vector<uint> gist(gist_size, 0);
+    size_t gist_data_size = gist_size * sizeof(uint);
     fprintf(stdout, "gist_data_size %zu\n", gist_data_size);
     cl_int device_gist_creation_error;
     cl_mem device_gist = clCreateBuffer(context, CL_MEM_READ_WRITE, gist_data_size, NULL, &device_gist_creation_error);
@@ -507,20 +523,37 @@ double PNMPicture::analyzeDataOpenCL(
     unsigned int local_chunk_size = chunk_size / max_group_size;
     fprintf(stdout, "local_chunk_size %d\n", local_chunk_size);
 
+    fprintf(stdout, "\n====== KERNEL ARGS INFO ======\n");
+    fprintf(stdout, "0) data_size = %d\n", data_size);
+    fprintf(stdout, "1) gist_size = %d\n", gist_size);
+    fprintf(stdout, "1) gist_data_size = %d\n", gist_data_size);
+    fprintf(stdout, "2) chunk_size = %d\n", chunk_size);
+    fprintf(stdout, "2) chunk_size_bytes = %d\n", sizeof(cl_int));
+    fprintf(stdout, "3) ignoreCount = %d\n", ignoreCount);
+    fprintf(stdout, "3) ignoreCount_bytes = %d\n", sizeof(cl_uint));
+    fprintf(stdout, "4) local_data_bytes = %d\n", chunk_size * sizeof(uchar));
+
     checkError(clSetKernelArg(kernel, 0, sizeof(cl_mem), &device_data));
     checkError(clSetKernelArg(kernel, 1, sizeof(cl_mem), &device_gist));
-    checkError(clSetKernelArg(kernel, 2, sizeof(cl_int), &local_chunk_size));
-    checkError(clSetKernelArg(kernel, 3, chunk_size * sizeof(cl_uchar), nullptr));
+    checkError(clSetKernelArg(kernel, 2, sizeof(cl_int), &chunk_size));
+    checkError(clSetKernelArg(kernel, 3, sizeof(cl_uint), &ignoreCount));
+    checkError(clSetKernelArg(kernel, 4, sizeof(cl_uint), &data_size));
+    checkError(clSetKernelArg(kernel, 5, chunk_size * sizeof(cl_uchar), nullptr));
 
     cl_event event;
     const size_t global_work_size = compute_units_count * max_group_size;
     const size_t local_work_size = max_group_size;
+    fprintf(stdout, "\n====== WORK ITEMS CONFIG ======\n");
+    fprintf(stdout, "global_work_size = %d\n", global_work_size);
+    fprintf(stdout, "local_work_size = %d\n", local_work_size);
     cl_int kernel_error = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_work_size, &local_work_size, 0, NULL, &event);
     if (kernel_error != 0) {
-        fprintf(stderr, "Kernel error %d\n", kernel_error);
+        fprintf(stderr, "Kernel execution error %d\n", kernel_error);
         exit(kernel_error);
     }
     clEnqueueReadBuffer(queue, device_gist, CL_TRUE, 0, gist_data_size, gist.data(), 0, NULL, NULL);
+    uint device_data_size = data_size * sizeof(cl_uchar);
+    clEnqueueReadBuffer(queue, device_data, CL_TRUE, 0, device_data_size, data.data(), 0, NULL, NULL);
 
     for (size_t i = 0; i < 256; i++) {
         fprintf(stdout, "%d, ", gist[i]);
