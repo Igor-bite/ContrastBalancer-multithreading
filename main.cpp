@@ -97,21 +97,22 @@ int pseudoMain(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
 //    return pseudoMain(argc, argv);
 
-    fprintf(stdout, "Starting\n");
-    int result;
-    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "dgpu", false, 4, nullptr);
-    fprintf(stdout, "\n\n");
-    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "gpu", true, 4, nullptr);
-    fprintf(stdout, "Ending\n");
-    return result;
-
     auto csv = CSVWriter("raw_data.csv");
+//    fprintf(stdout, "Starting\n");
+    int result;
+//    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "dgpu", false, 4, nullptr);
+//    fprintf(stdout, "\n\n");
+    result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "all", true, 1, &csv);
+//    fprintf(stdout, "Ending\n");
+//    return result;
+
+
     vector<int> parts = { 1, 2, 3, 4, 6, 8, 16 };
     for (int p : parts) {
-        //result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "all", true, p);
-        result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 1, "all", true, p, &csv);
-        result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 2, "all", true, p, &csv);
-        result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 3, "all", true, p, &csv);
+//        result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 0, "all", true, p, &csv);
+//        result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 1, "all", true, p, &csv);
+//        result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 2, "all", true, p, &csv);
+//        result = executeContrasting("in.ppm", "out.ppm", 0.00390625, 3, "all", true, p, &csv);
     }
 
 }

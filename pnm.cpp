@@ -21,6 +21,14 @@ using namespace std;
 
 typedef unsigned int uint;
 
+double calcTime(cl_event event) {
+    cl_ulong time_start;
+    cl_ulong time_end;
+    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL);
+    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL);
+    return (time_end - time_start) / 1000000.0;
+}
+
 PNMPicture::PNMPicture() = default;
 PNMPicture::PNMPicture(const string& filename) {
     read(filename);
@@ -378,6 +386,8 @@ void printBuildLog(cl_device_id selectedDevice, cl_program program) {
 }
 
 void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const string device_type, const int partOfAllWorkItems) noexcept {
+    double dataWriteTime;
+    cl_event dataWriteTimeEvent;
     auto tm = TimeMonitor(false);
 
     cl_device_id device;
@@ -409,7 +419,7 @@ void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const s
 
     size_t device_data_size = data_size * sizeof(cl_uchar);
     cl_mem device_data = clCreateBuffer(context, CL_MEM_READ_WRITE, device_data_size, NULL, NULL);
-    clEnqueueWriteBuffer(queue, device_data, CL_FALSE, 0, device_data_size, data.data(), 0, NULL, NULL);
+    clEnqueueWriteBuffer(queue, device_data, CL_FALSE, 0, device_data_size, data.data(), 0, NULL, &dataWriteTimeEvent);
 
     cl_program program = getOpenCLProgram(context);
     cl_int build_error = clBuildProgram(program, 0, NULL, "", NULL, NULL);
@@ -428,14 +438,26 @@ void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const s
     uchar min_v = 255;
     uchar max_v = 0;
 
-    double analyze_elapsed = analyzeDataOpenCL(elements, device_data, program, device, context, queue, ignoreCount);
+    double analyze_elapsed;
+    double analyze_elapsed_io;
+    analyzeDataOpenCL(elements, device_data, program, device, context, queue, ignoreCount, analyze_elapsed, analyze_elapsed_io);
 //    printf("Analyzed\n");
 
+    dataWriteTime = calcTime(dataWriteTimeEvent);
+
+    double io_time = analyze_elapsed_io + dataWriteTime;
+
+    clReleaseMemObject(device_data);
+    clReleaseProgram(program);
     clFinish(queue);
+    clReleaseCommandQueue(queue);
     clReleaseContext(context);
 
-    printf("Time: %g\n", analyze_elapsed);
+    printf("Time: %g\t%g\n", analyze_elapsed, analyze_elapsed + io_time);
+    int chunk_size = data_size / compute_units_count;
+    csv->write("in.ppm", partOfAllWorkItems, compute_units_count, chunk_size, analyze_elapsed);
     return;
+
 //    for (int i = 0; i < elements.size(); i++) {
 //        printf("%d, ", elements[i]);
 //    }
@@ -464,7 +486,7 @@ void PNMPicture::modifyOpenCL(const float coeff, const int device_index, const s
 
     double time = scale_elapsed + analyze_elapsed + determine_min_max_elapsed;
     printf("Time: %g\n", time);
-    int chunk_size = data_size / compute_units_count;
+//    int chunk_size = data_size / compute_units_count;
     csv->write("in.ppm", partOfAllWorkItems, compute_units_count, chunk_size, time);
 }
 
@@ -507,20 +529,41 @@ void checkError(cl_int error) {
     }
 }
 
-double PNMPicture::analyzeDataOpenCL(
+void PNMPicture::analyzeDataOpenCL(
     vector<size_t> &elements,
     cl_mem device_data,
     cl_program program,
     cl_device_id device,
     cl_context context,
     cl_command_queue queue,
-    uint ignoreCount
+    uint ignoreCount,
+    double &time,
+    double &io_time
 ) noexcept {
+    cl_ulong time_start;
+    cl_ulong time_end;
+
+    double gistTime;
+    cl_event gistTimeEvent;
+    double minMaxTime;
+    cl_event minMaxTimeEvent;
+    double modifyTime;
+    cl_event modifyTimeEvent;
+    double gistWriteTime;
+    cl_event gistWriteTimeTimeEvent;
+    double gistReadTime;
+    cl_event gistReadTimeEvent;
+    double dataReadTime;
+    cl_event dataReadTimeEvent;
+
     int groups_count = compute_units_count;
     int chunk_size = data_size / groups_count + 1;
 
     cl_int kernel_creation_error;
-    cl_kernel kernel = clCreateKernel(program, "makeGist", &kernel_creation_error);
+    cl_kernel makeGistKernel;
+    cl_kernel minMaxKernel;
+    cl_kernel modifyKernel;
+    makeGistKernel = clCreateKernel(program, "makeGist", &kernel_creation_error);
 
     size_t gist_size = 256;
 //    fprintf(stdout, "compute_units_count %d\n", compute_units_count);
@@ -533,7 +576,7 @@ double PNMPicture::analyzeDataOpenCL(
     if (device_gist_creation_error != 0) {
         fprintf(stderr, "device_gist_creation_error = %d", device_gist_creation_error);
     }
-    checkError(clEnqueueWriteBuffer(queue, device_gist, CL_FALSE, 0, gist_data_size, gist.data(), 0, NULL, NULL));
+    checkError(clEnqueueWriteBuffer(queue, device_gist, CL_FALSE, 0, gist_data_size, gist.data(), 0, NULL, &gistWriteTimeTimeEvent));
 
     unsigned int local_chunk_size = chunk_size / max_group_size;
 //    fprintf(stdout, "local_chunk_size %d\n", local_chunk_size);
@@ -548,38 +591,37 @@ double PNMPicture::analyzeDataOpenCL(
 //    fprintf(stdout, "3) ignoreCount_bytes = %lu\n", sizeof(cl_uint));
 //    fprintf(stdout, "4) local_data_bytes = %lu\n", chunk_size * sizeof(uchar));
 
-    checkError(clSetKernelArg(kernel, 0, sizeof(cl_mem), &device_data));
-    checkError(clSetKernelArg(kernel, 1, sizeof(cl_mem), &device_gist));
-    checkError(clSetKernelArg(kernel, 2, sizeof(cl_int), &chunk_size));
-    checkError(clSetKernelArg(kernel, 3, sizeof(cl_uint), &ignoreCount));
-    checkError(clSetKernelArg(kernel, 4, sizeof(cl_uint), &data_size));
-    checkError(clSetKernelArg(kernel, 5, chunk_size * sizeof(cl_uchar), nullptr));
+    checkError(clSetKernelArg(makeGistKernel, 0, sizeof(cl_mem), &device_data));
+    checkError(clSetKernelArg(makeGistKernel, 1, sizeof(cl_mem), &device_gist));
+    checkError(clSetKernelArg(makeGistKernel, 2, sizeof(cl_int), &chunk_size));
+    checkError(clSetKernelArg(makeGistKernel, 3, sizeof(cl_uint), &ignoreCount));
+    checkError(clSetKernelArg(makeGistKernel, 4, sizeof(cl_uint), &data_size));
+//    checkError(clSetKernelArg(makeGistKernel, 5, chunk_size * sizeof(cl_uchar), nullptr));
 
-    cl_event event;
     const size_t global_work_size = compute_units_count * max_group_size;
     const size_t local_work_size = max_group_size;
 //    fprintf(stdout, "\n====== WORK ITEMS CONFIG ======\n");
 //    fprintf(stdout, "global_work_size = %zu\n", global_work_size);
 //    fprintf(stdout, "local_work_size = %zu\n", local_work_size);
-    cl_int kernel_error = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_work_size, &local_work_size, 0, NULL, &event);
+    cl_int kernel_error = clEnqueueNDRangeKernel(queue, makeGistKernel, 1, NULL, &global_work_size, &local_work_size, 0, NULL, &gistTimeEvent);
     if (kernel_error != 0) {
         fprintf(stderr, "Kernel makeGist execution error %d\n", kernel_error);
         exit(kernel_error);
     }
 
-    kernel = clCreateKernel(program, "determineMinMax", &kernel_creation_error);
+    minMaxKernel = clCreateKernel(program, "determineMinMax", &kernel_creation_error);
 
-    checkError(clSetKernelArg(kernel, 0, sizeof(cl_uint), &ignoreCount));
-    checkError(clSetKernelArg(kernel, 1, sizeof(cl_mem), &device_gist));
+    checkError(clSetKernelArg(minMaxKernel, 0, sizeof(cl_uint), &ignoreCount));
+    checkError(clSetKernelArg(minMaxKernel, 1, sizeof(cl_mem), &device_gist));
 
     const size_t determineMinMaxWorkSize = 1;
-    kernel_error = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &determineMinMaxWorkSize, NULL, 0, NULL, &event);
+    kernel_error = clEnqueueNDRangeKernel(queue, minMaxKernel, 1, NULL, &determineMinMaxWorkSize, NULL, 0, NULL, &minMaxTimeEvent);
     if (kernel_error != 0) {
         fprintf(stderr, "Kernel determineMinMax execution error %d\n", kernel_error);
         exit(kernel_error);
     }
 
-    clEnqueueReadBuffer(queue, device_gist, CL_TRUE, 0, gist_data_size, gist.data(), 0, NULL, NULL);
+    clEnqueueReadBuffer(queue, device_gist, CL_TRUE, 0, gist_data_size, gist.data(), 0, NULL, &gistReadTimeEvent);
 
     cl_uint min_v = gist[1];
     cl_uint max_v = gist[2];
@@ -587,35 +629,42 @@ double PNMPicture::analyzeDataOpenCL(
     cl_float const scaledMinV = scale * cl_float(min_v);
 //    printf("\n\nmin_v = %d, max_v = %d\n", min_v, max_v);
 
-    kernel = clCreateKernel(program, "modify", &kernel_creation_error);
+    modifyKernel = clCreateKernel(program, "modify", &kernel_creation_error);
 
-    checkError(clSetKernelArg(kernel, 0, sizeof(cl_mem), &device_data));
-    checkError(clSetKernelArg(kernel, 1, sizeof(cl_float), &scale));
-    checkError(clSetKernelArg(kernel, 2, sizeof(cl_float), &scaledMinV));
+    checkError(clSetKernelArg(modifyKernel, 0, sizeof(cl_mem), &device_data));
+    checkError(clSetKernelArg(modifyKernel, 1, sizeof(cl_float), &scale));
+    checkError(clSetKernelArg(modifyKernel, 2, sizeof(cl_float), &scaledMinV));
 
     const size_t modifyWorkSize = data_size;
-    kernel_error = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &modifyWorkSize, NULL, 0, NULL, &event);
+    kernel_error = clEnqueueNDRangeKernel(queue, modifyKernel, 1, NULL, &modifyWorkSize, NULL, 0, NULL, &modifyTimeEvent);
     if (kernel_error != 0) {
         fprintf(stderr, "Kernel modify execution error %d\n", kernel_error);
         exit(kernel_error);
     }
 
     uint device_data_size = data_size * sizeof(cl_uchar);
-    clEnqueueReadBuffer(queue, device_data, CL_TRUE, 0, device_data_size, data.data(), 0, NULL, NULL);
+    clEnqueueReadBuffer(queue, device_data, CL_TRUE, 0, device_data_size, data.data(), 0, NULL, &dataReadTimeEvent);
 
-    for (size_t i = 0; i < 256; i++) {
+    gistTime = calcTime(gistTimeEvent);
+    minMaxTime = calcTime(minMaxTimeEvent);
+    modifyTime = calcTime(modifyTimeEvent);
+    gistWriteTime = calcTime(gistWriteTimeTimeEvent);
+    gistReadTime = calcTime(gistReadTimeEvent);
+    dataReadTime = calcTime(dataReadTimeEvent);
+
+//    for (size_t i = 0; i < 256; i++) {
 //        fprintf(stdout, "%d, ", gist[i]);
-    }
+//    }
 //    fprintf(stdout, "\n\n");
 
-    cl_ulong time_start;
-    cl_ulong time_end;
+//    double open_cl_ms_elapsed = (time_end - time_start) / 1000000.0;
+    time = gistTime + minMaxTime + modifyTime;
+    io_time = gistWriteTime + gistReadTime + dataReadTime;
 
-    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL);
-    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL);
-
-    double open_cl_ms_elapsed = (time_end - time_start) / 1000000.0;
-    return open_cl_ms_elapsed;
+    clReleaseMemObject(device_gist);
+    clReleaseKernel(makeGistKernel);
+    clReleaseKernel(minMaxKernel);
+    clReleaseKernel(modifyKernel);
 }
 
 

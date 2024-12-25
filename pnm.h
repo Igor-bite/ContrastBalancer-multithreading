@@ -50,14 +50,16 @@ public:
 
 private:
     void analyzeData(vector<size_t> &elements) const noexcept;
-    double analyzeDataOpenCL(
+    void analyzeDataOpenCL(
         vector<size_t> &elements,
         cl_mem device_data,
         cl_program program,
         cl_device_id device,
         cl_context context,
         cl_command_queue queue,
-        uint ignoreCount
+        uint ignoreCount,
+        double &time,
+        double &io_time
     ) noexcept;
     double scaleImageData(
         cl_mem device_data,

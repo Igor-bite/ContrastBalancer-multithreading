@@ -41,8 +41,7 @@ kernel void makeGist(
     global uint *gist,
     const int chunk_size,
     const uint ignore_count,
-    const uint data_size,
-    local uchar *local_data
+    const uint data_size
 ) {
     /*
 
@@ -75,10 +74,10 @@ kernel void makeGist(
     uint data_from = group_data_from + item_chunk_size * local_id;
     uint data_to = min(group_data_to, data_from + item_chunk_size);
 
-    for (uint i = data_from; i < data_to; i++) {
-        int local_data_index = i - group_data_from;
-        local_data[local_data_index] = data[i];
-    }
+    // for (uint i = data_from; i < data_to; i++) {
+    //     int local_data_index = i - group_data_from;
+    //     local_data[local_data_index] = data[i];
+    // }
 
     local uint local_gist[256];
     uint max_index = 256 / group_size;
@@ -96,8 +95,8 @@ kernel void makeGist(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     for (uint i = data_from; i < data_to; i++) {
-        int local_data_index = i - group_data_from;
-        atomic_inc(local_gist + local_data[local_data_index]);
+        // int local_data_index = i - group_data_from;
+        atomic_inc(local_gist + data[i]);
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -107,32 +106,6 @@ kernel void makeGist(
             uint index = i * min(group_size, max_handled_group_size) + local_id;
             atomic_add(gist + index, local_gist[index]);
         }
-    }
-
-    return;
-
-    barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
-
-    if (global_id == 0) {
-        determineMinMax(
-            ignore_count,
-            gist
-        );
-    }
-
-    barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
-
-    float min_v = gist[1];
-    float max_v = gist[2];
-
-    float const max_value = 255;
-    float const scale = max_value / (max_v - min_v);
-    float const scaledMinV = scale * min_v;
-
-    for (uint i = data_from; i < data_to; i++) {
-        int local_data_index = i - group_data_from;
-        int scaledValue = scale * local_data[local_data_index] - scaledMinV;
-        data[i] = max(0, min(scaledValue, 255));
     }
 }
 
