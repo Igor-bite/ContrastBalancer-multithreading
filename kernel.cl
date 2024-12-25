@@ -82,11 +82,15 @@ kernel void makeGist(
 
     local uint local_gist[256];
     uint max_index = 256 / group_size;
+    bool isGistHandler = (max_index < 1 && local_id < 256) || max_index >= 1;
     uint min_max_index = 1;
     max_index = max(min_max_index, max_index);
-    for (uint i = 0; i < max_index; i++) {
-        uint index = i * group_size + local_id;
-        local_gist[index] = 0;
+    uint max_handled_group_size = 256;
+    if (isGistHandler) {
+        for (uint i = 0; i < max_index; i++) {
+            uint index = i * min(group_size, max_handled_group_size) + local_id;
+            local_gist[index] = 0;
+        }
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -98,9 +102,11 @@ kernel void makeGist(
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    for (uint i = 0; i < 256 / group_size; i++) {
-        uint index = i * group_size + local_id;
-        atomic_add(gist + index, local_gist[index]);
+    if (isGistHandler) {
+        for (uint i = 0; i < max_index; i++) {
+            uint index = i * min(group_size, max_handled_group_size) + local_id;
+            atomic_add(gist + index, local_gist[index]);
+        }
     }
 
     return;
